@@ -4,9 +4,21 @@ from boolean_combinations import Verum, Falsum, assignments2conjunction, Negatio
 from utils import format_dict, powerset_dict
 
 
-class Variable(str):
+class Variable:
+    def __init__(self, symbol):
+        self.symbol = symbol
+
+    def __hash__(self):
+        return hash((type(self), self.symbol))
+
+    def __eq__(self, other):
+        return self.symbol == other.symbol
+
+    def __str__(self):
+        return f"{self.symbol}"
+
     def __repr__(self):
-        return f"{self}"
+        return self.__str__()
 
 
 class CausalModel:
