@@ -8,8 +8,15 @@ def format_dict(data, delim=",", sep="=", brackets=True):
     return f"{data_str}"
 
 
-def powerset_dict(d):  # https://stackoverflow.com/a/1482320
-    n = len(d)
+def powerset_dict(data):  # https://stackoverflow.com/a/1482320
+    n = len(data)
     masks = [1 << i for i in range(n)]
     for i in range(1 << n):
-        yield {key: d[key] for mask, key in zip(masks, d) if i & mask}
+        yield {key: data[key] for mask, key in zip(masks, data) if i & mask}
+
+
+def powerset_set(data):  # https://stackoverflow.com/a/1482320
+    n = len(data)
+    masks = [1 << i for i in range(n)]
+    for i in range(1 << n):
+        yield {element for mask, element in zip(masks, data) if i & mask}

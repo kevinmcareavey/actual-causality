@@ -1,5 +1,6 @@
 from boolean_combinations import Disjunction, Atom, Conjunction, Negation
-from hp_definition import Variable, CausalModel, CausalFormula, CausalSetting
+from hp_definition import Variable, CausalModel, CausalFormula, CausalSetting, is_actual_cause
+from utils import powerset_set
 
 
 def forest_fire(disjunction=True):
@@ -84,4 +85,10 @@ def rock_throwing():
 
     cs = CausalSetting(cm, c)
 
-    cs.is_actual_cause({st: True}, Atom(bs))
+    for hypothesis_variables in powerset_set(cm.endogenous_variables()):
+        if hypothesis_variables:
+            initial_hypothesis = {variable: True for variable in hypothesis_variables}
+            for negated_hypothesis_variables in powerset_set(hypothesis_variables):
+                hypothesis = {variable: not value if variable in negated_hypothesis_variables else value for variable, value in initial_hypothesis.items()}
+                if is_actual_cause(hypothesis, Atom(bs), cs):
+                    print(f"{hypothesis} is actual cause of {Atom(bs)} in {cs}")

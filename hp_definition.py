@@ -1,7 +1,7 @@
 from copy import copy
 
-from boolean_combinations import Verum, Falsum, hypothesis2conjunction
-from utils import format_dict
+from boolean_combinations import Verum, Falsum, assignments2conjunction, Negation
+from utils import format_dict, powerset_dict
 
 
 class Variable(str):
@@ -11,11 +11,14 @@ class Variable(str):
 
 class CausalModel:
     def __init__(self, exogenous_variables, structural_equations):
-        self.exogenous_variables = exogenous_variables
-        self.structural_equations = structural_equations
+        self.exogenous_variables = exogenous_variables  # set of exogenous variables
+        self.structural_equations = structural_equations  # dict mapping endogenous variables to Boolean formulas over (exogenous and/or endogenous) variables
+
+    def endogenous_variables(self):
+        return set(self.structural_equations.keys())
 
     def signature(self):
-        return self.exogenous_variables, set(self.structural_equations.keys())
+        return self.exogenous_variables, self.endogenous_variables()
 
     def intervene(self, intervention):
         new_structural_equations = copy(self.structural_equations)
@@ -30,24 +33,11 @@ class CausalModel:
 class CausalSetting:
     def __init__(self, causal_model, context):
         self.causal_model = causal_model
-        self.context = context
+        self.context = context  # dict mapping exogenous variables to values
 
-    def value(self, variable):
-        if variable in self.context:
-            return self.context[variable]
-        else:
-            return self.causal_model.structural_equations[variable](self.context)
-
-    def is_actual_cause(self, hypothesis, event):
-        print(f"is {hypothesis} an actual cause of {event} in {self}?")
-        if not hypothesis2conjunction(hypothesis).normalise(self.causal_model).entailed_by(self):
-            return False
-        print(f"{self} |= {hypothesis2conjunction(hypothesis)}")
-        if not event.normalise(self.causal_model).entailed_by(self):
-            return False
-        print(f"{self} |= {event}")
-        print("YES")
-        return True
+    def values(self):
+        endogenous_values = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
+        return {**self.context, **endogenous_values}
 
     def __str__(self):
         return f"{self.causal_model} / {format_dict(self.context)}"
@@ -55,14 +45,57 @@ class CausalSetting:
 
 class CausalFormula:
     def __init__(self, intervention, event):
-        self.intervention = intervention
-        self.event = event
+        self.intervention = intervention  # dict mapping endogenous variables to values
+        self.event = event  # Boolean formula over endogenous variables
 
     def entailed_by(self, causal_setting):
         new_causal_model = causal_setting.causal_model.intervene(self.intervention)
         new_causal_setting = CausalSetting(new_causal_model, causal_setting.context)
-        new_event = self.event.normalise(new_causal_model)
-        return new_event.entailed_by(new_causal_setting)
+        return self.event.entailed_by(new_causal_setting)
 
     def __str__(self):
         return f"[{format_dict(self.intervention, delim=';', sep='<-', brackets=False)}]({self.event})"
+
+
+def satisfies_ac1(hypothesis, event, causal_setting):
+    if not assignments2conjunction(hypothesis).entailed_by(causal_setting):
+        return False
+    if not event.entailed_by(causal_setting):
+        return False
+    return True
+
+
+def satisfies_ac2(hypothesis, event, causal_setting):
+    original_values = causal_setting.values()
+
+    x_values = {hypothesis_variable: original_values[hypothesis_variable] for hypothesis_variable in hypothesis}
+    w_values = {witness_variable: original_values[witness_variable] for witness_variable in causal_setting.causal_model.endogenous_variables() - hypothesis.keys()}
+    assert not (x_values.keys() & w_values.keys())  # x_values and w_values should not intersect
+
+    for subset_x_values in powerset_dict(x_values):
+        if subset_x_values:  # at least one X variable must be negated
+            x_prime_values = {hypothesis_variable: not hypothesis_value if hypothesis_variable in subset_x_values else hypothesis_value for hypothesis_variable, hypothesis_value in hypothesis.items()}
+            for subset_w_values in powerset_dict(w_values):
+                casual_formula = CausalFormula({**x_prime_values, **subset_w_values}, Negation(event))
+                if casual_formula.entailed_by(causal_setting):
+                    return True
+
+    return False
+
+
+def satisfies_ac3(hypothesis, event, causal_setting):
+    for subset_hypothesis in powerset_dict(hypothesis):
+        if subset_hypothesis != hypothesis:
+            if satisfies_ac1(subset_hypothesis, event, causal_setting) and satisfies_ac2(subset_hypothesis, event, causal_setting):
+                return False
+    return True
+
+
+def is_actual_cause(hypothesis, event, causal_setting):
+    if not satisfies_ac1(hypothesis, event, causal_setting):
+        return False
+    if not satisfies_ac2(hypothesis, event, causal_setting):
+        return False
+    if not satisfies_ac3(hypothesis, event, causal_setting):
+        return False
+    return True

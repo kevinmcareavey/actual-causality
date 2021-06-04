@@ -4,18 +4,14 @@ from copy import copy
 
 class BooleanFormula(ABC):
     @abstractmethod
-    def normalise(self, causal_model):
-        raise NotImplemented
-
-    @abstractmethod
     def entailed_by(self, causal_setting):
         raise NotImplemented
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class Verum(BooleanFormula):
-    def normalise(self, causal_model):
-        return self
-
     def entailed_by(self, causal_setting):
         return True
 
@@ -24,9 +20,6 @@ class Verum(BooleanFormula):
 
 
 class Falsum(BooleanFormula):
-    def normalise(self, causal_model):
-        return self
-
     def entailed_by(self, causal_setting):
         return False
 
@@ -38,16 +31,11 @@ class Atom(BooleanFormula):
     def __init__(self, variable):
         self.variable = variable
 
-    def normalise(self, causal_model):
-        if self.variable in causal_model.exogenous_variables:
-            return self
-        else:
-            return causal_model.structural_equations[self.variable].normalise(causal_model)
-
     def entailed_by(self, causal_setting):
-        if self.variable not in causal_setting.causal_model.exogenous_variables:
-            raise Exception
-        return causal_setting.context[self.variable]
+        if self.variable in causal_setting.causal_model.exogenous_variables:
+            return causal_setting.context[self.variable]
+        else:
+            return causal_setting.causal_model.structural_equations[self.variable].entailed_by(causal_setting)
 
     def __str__(self):
         return f"{self.variable}"
@@ -56,9 +44,6 @@ class Atom(BooleanFormula):
 class Negation(BooleanFormula):
     def __init__(self, child):
         self.child = child
-
-    def normalise(self, causal_model):
-        return Negation(self.child.normalise(causal_model))
 
     def entailed_by(self, causal_setting):
         return not self.child.entailed_by(causal_setting)
@@ -74,9 +59,6 @@ class BinaryFormula(BooleanFormula, metaclass=ABCMeta):
 
 
 class Conjunction(BinaryFormula):
-    def normalise(self, causal_model):
-        return Conjunction(self.left_child.normalise(causal_model), self.right_child.normalise(causal_model))
-
     def entailed_by(self, causal_setting):
         return self.left_child.entailed_by(causal_setting) and self.right_child.entailed_by(causal_setting)
 
@@ -85,9 +67,6 @@ class Conjunction(BinaryFormula):
 
 
 class Disjunction(BinaryFormula):
-    def normalise(self, causal_model):
-        return Disjunction(self.left_child.normalise(causal_model), self.right_child.normalise(causal_model))
-
     def entailed_by(self, causal_setting):
         return self.left_child.entailed_by(causal_setting) or self.right_child.entailed_by(causal_setting)
 
@@ -95,10 +74,12 @@ class Disjunction(BinaryFormula):
         return f"({self.left_child} | {self.right_child})"
 
 
-def hypothesis2conjunction(hypothesis, right_child=None):
-    hypothesis_remainder = copy(hypothesis)
-    variable, value = hypothesis_remainder.popitem()  # pops items in reverse order, which is important for order of operations
+def assignments2conjunction(assignments, right_child=None):
+    if not assignments:
+        return Verum()
+    assignments_remainder = copy(assignments)
+    variable, value = assignments_remainder.popitem()  # pops items in reverse order, which is important for respecting order of operations
     atom = Atom(variable)
     literal = atom if value else Negation(atom)
     formula = Conjunction(literal, right_child) if right_child else literal
-    return hypothesis2conjunction(hypothesis_remainder, formula) if hypothesis_remainder else formula
+    return assignments2conjunction(assignments_remainder, formula) if assignments_remainder else formula
