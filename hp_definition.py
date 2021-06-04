@@ -47,12 +47,14 @@ class CausalSetting:
         self.causal_model = causal_model
         self.context = context  # dict mapping exogenous variables to values
 
+        assert self.causal_model.exogenous_variables == self.context.keys()
+
     def values(self):
         endogenous_values = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
         return {**self.context, **endogenous_values}
 
     def __str__(self):
-        return f"{self.causal_model} / {format_dict(self.context)}"
+        return f"({format_dict(self.context)}, {format_dict(self.causal_model.structural_equations)})"
 
 
 class CausalFormula:

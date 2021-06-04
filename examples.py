@@ -1,4 +1,4 @@
-from boolean_combinations import Disjunction, Atom, Conjunction, Negation
+from boolean_combinations import Disjunction, Atom, Conjunction, Negation, assignments2conjunction
 from hp_definition import Variable, CausalModel, CausalFormula, CausalSetting, is_actual_cause
 from utils import powerset_set
 
@@ -36,24 +36,21 @@ def forest_fire(disjunction=True):
         {md: False},
         Atom(ff)
     )
-    if disjunction:
-        assert cf1.entailed_by(cs)  # (Md, (1, 1)) |= [MD ← 0](FF = 1) example from Page 21 [Halpern, 2016]
+    assert not disjunction or cf1.entailed_by(cs)  # (Md, (1, 1)) |= [MD ← 0](FF = 1) example from Page 21 [Halpern, 2016]
     print(f"{cs} |= {cf1} : {cf1.entailed_by(cs)}")
 
     cf2 = CausalFormula(
         {l: False},
         Atom(ff)
     )
-    if disjunction:
-        assert cf2.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0](FF = 1) example from Page 21 [Halpern, 2016]
+    assert not disjunction or cf2.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0](FF = 1) example from Page 21 [Halpern, 2016]
     print(f"{cs} |= {cf2} : {cf2.entailed_by(cs)}")
 
     cf3 = CausalFormula(
         {l: False, md: False},
         Negation(Atom(ff))
     )
-    if disjunction:
-        assert cf3.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0; MD ← 0](FF = 0) example from Page 21 [Halpern, 2016]
+    assert not disjunction or cf3.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0; MD ← 0](FF = 0) example from Page 21 [Halpern, 2016]
     print(f"{cs} |= {cf3} : {cf3.entailed_by(cs)}")
 
 
@@ -85,10 +82,18 @@ def rock_throwing():
 
     cs = CausalSetting(cm, c)
 
+    def is_correct(assignments, result):
+        if assignments == {st: True} or assignments == {sh: True} or assignments == {bs: True}:
+            return result is True
+        else:
+            return result is False
+
     for hypothesis_variables in powerset_set(cm.endogenous_variables()):
         if hypothesis_variables:
             initial_hypothesis = {variable: True for variable in hypothesis_variables}
             for negated_hypothesis_variables in powerset_set(hypothesis_variables):
                 hypothesis = {variable: not value if variable in negated_hypothesis_variables else value for variable, value in initial_hypothesis.items()}
-                if is_actual_cause(hypothesis, Atom(bs), cs):
-                    print(f"{hypothesis} is actual cause of {Atom(bs)} in {cs}")
+                actual_cause = is_actual_cause(hypothesis, Atom(bs), cs)
+                assert is_correct(hypothesis, actual_cause)
+                if actual_cause:
+                    print(f"{assignments2conjunction(hypothesis)} is an actual cause of {Atom(bs)} in causal setting {cs}")
