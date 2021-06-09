@@ -48,7 +48,7 @@ class Atom(BooleanFormula):
             return causal_setting.causal_model.structural_equations[self.variable].entailed_by(causal_setting)
 
     def variables(self):
-        return set([self.variable])
+        return {self.variable}
 
     def __str__(self):
         return f"{self.variable}"
