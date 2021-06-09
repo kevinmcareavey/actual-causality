@@ -1,9 +1,15 @@
 # actual-causality
-A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality where all variables are Boolean variables and all structural equations are propositional formulas.
+A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality.
+
+Note that causal models are limited to those with Boolean variables and structural equations are limited to propositional formulas.
 
 ## Examples
 
 ### Forest Fire
+This example involves three endogenous variables: a forest fire `FF`, a lightning strike `L`, and a match dropped by an arsonist `MD`.
+The values of these variables are defined in two different causal models involving two exogenous variables `U_L` and `U_MD`.
+In the conjunctive model the structural equations are defined as `FF = (L & MD)`, `L = U_L`, and `MD = U_MD`.
+In the disjunctive model the structural equations are defined as `FF = (L | MD)`, `L = U_L`, and `MD = U_MD`.
 
 #### Conjunctive Model
 ```python
@@ -58,6 +64,9 @@ True
 ![](examples/conjunctive_forest_fire.png)
 
 ### Rock Throwing
+This example involves five endogenous variables: Sally throws a rock `ST`, Billy throws a rock `BT`, Sally hits the bottle `SH`, Billy hits the bottle `BH`, and the bottle shatters `BS`.
+The values of these variables are defined in a causal model involving two exogenous variables `ST_exo` and `BT_exo` where the structural equations are defined as `ST = ST_exo`, `BT = BT_exo`, `SH = ST`, `BH = (BT & !SH)`, and `BS = (SH | BH)`.
+
 ```python
 >>> from boolean_combinations import Atom, Conjunction, Disjunction, Negation
 >>> from hp_definition import CausalModel, CausalSetting, Variable, is_actual_cause
