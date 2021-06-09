@@ -14,7 +14,7 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 #### Conjunctive Model
 ```python
 >>> from boolean_combinations import Atom, Conjunction
->>> from hp_definition import CausalModel, CausalSetting, Variable, is_actual_cause
+>>> from hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes
 >>> u_l, u_md = Variable("U_L"), Variable("U_MD")
 >>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
 >>> exogenous_variables = {u_l, u_md}
@@ -27,12 +27,8 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 >>> context = {u_l: True, u_md: True}
 >>> casual_setting = CausalSetting(causal_model, context)
 >>> event = Atom(ff)
->>> is_actual_cause({l: True}, event, casual_setting)
-True
->>> is_actual_cause({md: True}, event, casual_setting)
-True
->>> is_actual_cause({l: True, md: True}, event, casual_setting)
-False
+>>> find_actual_causes(event, casual_setting)
+[{L: True}, {FF: True}, {MD: True}]
 ```
 
 ![](examples/disjunctive_forest_fire.png)
@@ -40,7 +36,7 @@ False
 #### Disjunctive Model
 ```python
 >>> from boolean_combinations import Atom, Disjunction
->>> from hp_definition import CausalModel, CausalSetting, Variable, is_actual_cause
+>>> from hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes
 >>> u_l, u_md = Variable("U_L"), Variable("U_MD")
 >>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
 >>> exogenous_variables = {u_l, u_md}
@@ -53,12 +49,8 @@ False
 >>> context = {u_l: True, u_md: True}
 >>> casual_setting = CausalSetting(causal_model, context)
 >>> event = Atom(ff)
->>> is_actual_cause({l: True}, event, casual_setting)
-False
->>> is_actual_cause({md: True}, event, casual_setting)
-False
->>> is_actual_cause({l: True, md: True}, event, casual_setting)
-True
+>>> find_actual_causes(event, casual_setting)
+[{FF: True}, {MD: True, L: True}]
 ```
 
 ![](examples/conjunctive_forest_fire.png)
@@ -69,7 +61,7 @@ The values of these variables are defined in a causal model involving two exogen
 
 ```python
 >>> from boolean_combinations import Atom, Conjunction, Disjunction, Negation
->>> from hp_definition import CausalModel, CausalSetting, Variable, is_actual_cause
+>>> from hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes
 >>> st_exo, bt_exo = Variable("ST_exo"), Variable("BT_exo")
 >>> st, bt, sh, bh, bs = Variable("ST"), Variable("BT"), Variable("SH"), Variable("BH"), Variable("BS")
 >>> exogenous_variables = {st_exo, bt_exo}
@@ -84,12 +76,8 @@ The values of these variables are defined in a causal model involving two exogen
 >>> context = {st_exo: True, bt_exo: True}
 >>> casual_setting = CausalSetting(causal_model, context)
 >>> event = Atom(bs)
->>> is_actual_cause({st: True}, event, casual_setting)
-True
->>> is_actual_cause({bt: True}, event, casual_setting)
-False
->>> is_actual_cause({st: True, bt: True}, event, casual_setting)
-False
+>>> find_actual_causes(event, casual_setting)
+[{SH: True}, {ST: True}, {BS: True}]
 ```
 
 ![](examples/rock_throwing.png)
