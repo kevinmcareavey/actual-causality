@@ -1,7 +1,7 @@
 # actual-causality
 A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality.
 
-Note that causal models are limited to those with Boolean variables and structural equations are limited to propositional formulas.
+*Note: causal models are restricted to those with Boolean variables and structural equations are restricted to propositional formulas.*
 
 ## Examples
 
