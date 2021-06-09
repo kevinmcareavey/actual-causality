@@ -7,6 +7,10 @@ class BooleanFormula(ABC):
     def entailed_by(self, causal_setting):
         raise NotImplemented
 
+    @abstractmethod
+    def variables(self):
+        raise NotImplemented
+
     def __repr__(self):
         return self.__str__()
 
@@ -15,6 +19,9 @@ class Verum(BooleanFormula):
     def entailed_by(self, causal_setting):
         return True
 
+    def variables(self):
+        return set()
+
     def __str__(self):
         return "True"
 
@@ -22,6 +29,9 @@ class Verum(BooleanFormula):
 class Falsum(BooleanFormula):
     def entailed_by(self, causal_setting):
         return False
+
+    def variables(self):
+        return set()
 
     def __str__(self):
         return "False"
@@ -37,6 +47,9 @@ class Atom(BooleanFormula):
         else:
             return causal_setting.causal_model.structural_equations[self.variable].entailed_by(causal_setting)
 
+    def variables(self):
+        return set([self.variable])
+
     def __str__(self):
         return f"{self.variable}"
 
@@ -48,6 +61,9 @@ class Negation(BooleanFormula):
     def entailed_by(self, causal_setting):
         return not self.child.entailed_by(causal_setting)
 
+    def variables(self):
+        return self.child.variables()
+
     def __str__(self):
         return f"!{self.child}"
 
@@ -56,6 +72,9 @@ class BinaryFormula(BooleanFormula, metaclass=ABCMeta):
     def __init__(self, left_child, right_child):
         self.left_child = left_child
         self.right_child = right_child
+
+    def variables(self):
+        return self.left_child.variables() | self.right_child.variables()
 
 
 class Conjunction(BinaryFormula):

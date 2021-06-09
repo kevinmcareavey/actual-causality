@@ -25,6 +25,8 @@ def forest_fire(disjunction=True):
         }
     )
 
+    # cm.causal_network().draw(f"examples/{'dis' if disjunction else 'con'}junctive_forest_fire.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+
     c = {
         u_l: True,
         u_md: True
@@ -75,6 +77,8 @@ def rock_throwing():
         }
     )
 
+    # cm.causal_network().draw("examples/rock_throwing.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+
     c = {
         st_exo: True,
         bt_exo: True
@@ -88,12 +92,12 @@ def rock_throwing():
         else:
             return result is False
 
-    for hypothesis_variables in powerset_set(cm.endogenous_variables()):
-        if hypothesis_variables:
-            initial_hypothesis = {variable: True for variable in hypothesis_variables}
-            for negated_hypothesis_variables in powerset_set(hypothesis_variables):
-                hypothesis = {variable: not value if variable in negated_hypothesis_variables else value for variable, value in initial_hypothesis.items()}
-                actual_cause = is_actual_cause(hypothesis, Atom(bs), cs)
-                assert is_correct(hypothesis, actual_cause)
+    for candidate_variables in powerset_set(cm.endogenous_variables()):
+        if candidate_variables:
+            initial_candidate = {variable: True for variable in candidate_variables}
+            for negated_candidate_variables in powerset_set(candidate_variables):
+                candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
+                actual_cause = is_actual_cause(candidate, Atom(bs), cs)
+                assert is_correct(candidate, actual_cause)
                 if actual_cause:
-                    print(f"{assignments2conjunction(hypothesis)} is an actual cause of {Atom(bs)} in causal setting {cs}")
+                    print(f"{assignments2conjunction(candidate)} is an actual cause of {Atom(bs)} in causal setting {cs}")

@@ -1,5 +1,7 @@
 from copy import copy
 
+from pygraphviz import AGraph
+
 from boolean_combinations import Verum, Falsum, assignments2conjunction, Negation
 from utils import format_dict, powerset_dict
 
@@ -38,6 +40,17 @@ class CausalModel:
             new_structural_equations[variable] = Verum() if value else Falsum()
         return CausalModel(self.exogenous_variables, new_structural_equations)
 
+    def causal_network(self):
+        network = AGraph(directed=True)
+        for exogenous_variable in self.exogenous_variables:
+            network.add_node(str(exogenous_variable))
+        for endogenous_variable, equation in self.structural_equations.items():
+            network.add_node(str(endogenous_variable), xlabel=f"{endogenous_variable} = {equation}")
+        for endogenous_variable, equation in self.structural_equations.items():
+            for variable in equation.variables():
+                network.add_edge(str(variable), str(endogenous_variable))
+        return network
+
     def __str__(self):
         return f"({self.exogenous_variables}, {format_dict(self.structural_equations)})"
 
@@ -71,24 +84,24 @@ class CausalFormula:
         return f"[{format_dict(self.intervention, delim=';', sep='<-', brackets=False)}]({self.event})"
 
 
-def satisfies_ac1(hypothesis, event, causal_setting):
-    if not assignments2conjunction(hypothesis).entailed_by(causal_setting):
+def satisfies_ac1(candidate, event, causal_setting):
+    if not assignments2conjunction(candidate).entailed_by(causal_setting):
         return False
     if not event.entailed_by(causal_setting):
         return False
     return True
 
 
-def satisfies_ac2(hypothesis, event, causal_setting):
+def satisfies_ac2(candidate, event, causal_setting):
     original_values = causal_setting.values()
 
-    x_values = {hypothesis_variable: original_values[hypothesis_variable] for hypothesis_variable in hypothesis}
-    w_values = {witness_variable: original_values[witness_variable] for witness_variable in causal_setting.causal_model.endogenous_variables() - hypothesis.keys()}
+    x_values = {candidate_variable: original_values[candidate_variable] for candidate_variable in candidate}
+    w_values = {witness_variable: original_values[witness_variable] for witness_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
     assert not (x_values.keys() & w_values.keys())  # x_values and w_values should not intersect
 
     for subset_x_values in powerset_dict(x_values):
         if subset_x_values:  # at least one X variable must be negated
-            x_prime_values = {hypothesis_variable: not hypothesis_value if hypothesis_variable in subset_x_values else hypothesis_value for hypothesis_variable, hypothesis_value in hypothesis.items()}
+            x_prime_values = {candidate_variable: not candidate_value if candidate_variable in subset_x_values else candidate_value for candidate_variable, candidate_value in candidate.items()}
             for subset_w_values in powerset_dict(w_values):
                 casual_formula = CausalFormula({**x_prime_values, **subset_w_values}, Negation(event))
                 if casual_formula.entailed_by(causal_setting):
@@ -97,19 +110,19 @@ def satisfies_ac2(hypothesis, event, causal_setting):
     return False
 
 
-def satisfies_ac3(hypothesis, event, causal_setting):
-    for subset_hypothesis in powerset_dict(hypothesis):
-        if subset_hypothesis != hypothesis:
-            if satisfies_ac1(subset_hypothesis, event, causal_setting) and satisfies_ac2(subset_hypothesis, event, causal_setting):
+def satisfies_ac3(candidate, event, causal_setting):
+    for subset_candidate in powerset_dict(candidate):
+        if subset_candidate != candidate:
+            if satisfies_ac1(subset_candidate, event, causal_setting) and satisfies_ac2(subset_candidate, event, causal_setting):
                 return False
     return True
 
 
-def is_actual_cause(hypothesis, event, causal_setting):
-    if not satisfies_ac1(hypothesis, event, causal_setting):
+def is_actual_cause(candidate, event, causal_setting):
+    if not satisfies_ac1(candidate, event, causal_setting):
         return False
-    if not satisfies_ac2(hypothesis, event, causal_setting):
+    if not satisfies_ac2(candidate, event, causal_setting):
         return False
-    if not satisfies_ac3(hypothesis, event, causal_setting):
+    if not satisfies_ac3(candidate, event, causal_setting):
         return False
     return True
