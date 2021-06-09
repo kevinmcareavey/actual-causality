@@ -94,3 +94,15 @@ def rock_throwing():
     actual_causes = find_actual_causes(event, causal_setting, expected_causes=[{st: True}, {sh: True}, {bs: True}])
     for actual_cause in actual_causes:
         print(f"{assignments2conjunction(actual_cause)} is an actual cause of {event} in causal setting {causal_setting}")
+
+
+if __name__ == "__main__":
+    print("Forest fire (disjunctive model):")
+    forest_fire(disjunction=True)
+
+    print("\nForest fire (conjunctive model):")
+    forest_fire(disjunction=False)
+
+    print("\nRock throwing:")
+    rock_throwing()
+
