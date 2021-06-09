@@ -1,6 +1,5 @@
 from boolean_combinations import Disjunction, Atom, Conjunction, Negation, assignments2conjunction
-from hp_definition import Variable, CausalModel, CausalFormula, CausalSetting, is_actual_cause
-from utils import powerset_set
+from hp_definition import Variable, CausalModel, CausalFormula, CausalSetting, find_actual_causes
 
 
 def forest_fire(disjunction=True):
@@ -16,7 +15,7 @@ def forest_fire(disjunction=True):
     assert Variable("FF") == Variable("FF")
     assert type(ff) == Variable
 
-    cm = CausalModel(
+    causal_model = CausalModel(
         {u_l, u_md},
         {
             ff: Disjunction(Atom(l), Atom(md)) if disjunction else Conjunction(Atom(l), Atom(md)),
@@ -25,35 +24,40 @@ def forest_fire(disjunction=True):
         }
     )
 
-    # cm.causal_network().draw(f"examples/{'dis' if disjunction else 'con'}junctive_forest_fire.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+    # causal_model.causal_network().draw(f"examples/{'dis' if disjunction else 'con'}junctive_forest_fire.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
 
-    c = {
+    context = {
         u_l: True,
         u_md: True
     }
 
-    cs = CausalSetting(cm, c)
+    causal_setting = CausalSetting(causal_model, context)
 
-    cf1 = CausalFormula(
+    causal_formula1 = CausalFormula(
         {md: False},
         Atom(ff)
     )
-    assert not disjunction or cf1.entailed_by(cs)  # (Md, (1, 1)) |= [MD ← 0](FF = 1) example from Page 21 [Halpern, 2016]
-    print(f"{cs} |= {cf1} : {cf1.entailed_by(cs)}")
+    assert not disjunction or causal_formula1.entailed_by(causal_setting)  # (Md, (1, 1)) |= [MD ← 0](FF = 1) example from Page 21 [Halpern, 2016]
+    print(f"{causal_setting} |= {causal_formula1} : {causal_formula1.entailed_by(causal_setting)}")
 
-    cf2 = CausalFormula(
+    causal_formula2 = CausalFormula(
         {l: False},
         Atom(ff)
     )
-    assert not disjunction or cf2.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0](FF = 1) example from Page 21 [Halpern, 2016]
-    print(f"{cs} |= {cf2} : {cf2.entailed_by(cs)}")
+    assert not disjunction or causal_formula2.entailed_by(causal_setting)  # (Md, (1, 1)) |= [L ← 0](FF = 1) example from Page 21 [Halpern, 2016]
+    print(f"{causal_setting} |= {causal_formula2} : {causal_formula2.entailed_by(causal_setting)}")
 
-    cf3 = CausalFormula(
+    causal_formula3 = CausalFormula(
         {l: False, md: False},
         Negation(Atom(ff))
     )
-    assert not disjunction or cf3.entailed_by(cs)  # (Md, (1, 1)) |= [L ← 0; MD ← 0](FF = 0) example from Page 21 [Halpern, 2016]
-    print(f"{cs} |= {cf3} : {cf3.entailed_by(cs)}")
+    assert not disjunction or causal_formula3.entailed_by(causal_setting)  # (Md, (1, 1)) |= [L ← 0; MD ← 0](FF = 0) example from Page 21 [Halpern, 2016]
+    print(f"{causal_setting} |= {causal_formula3} : {causal_formula3.entailed_by(causal_setting)}")
+
+    event = Atom(ff)
+    actual_causes = find_actual_causes(event, causal_setting, expected_causes=[{ff: True}, {l: True, md: True}] if disjunction else [{ff: True}, {l: True}, {md: True}])
+    for actual_cause in actual_causes:
+        print(f"{assignments2conjunction(actual_cause)} is an actual cause of {event} in causal setting {causal_setting}")
 
 
 def rock_throwing():
@@ -66,7 +70,7 @@ def rock_throwing():
     bh = Variable("BH")
     bs = Variable("BS")
 
-    cm = CausalModel(
+    causal_model = CausalModel(
         {st_exo, bt_exo},
         {
             st: Atom(st_exo),
@@ -77,27 +81,16 @@ def rock_throwing():
         }
     )
 
-    # cm.causal_network().draw("examples/rock_throwing.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+    # causal_model.causal_network().draw("examples/rock_throwing.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
 
-    c = {
+    context = {
         st_exo: True,
         bt_exo: True
     }
 
-    cs = CausalSetting(cm, c)
+    causal_setting = CausalSetting(causal_model, context)
 
-    def is_correct(assignments, result):
-        if assignments == {st: True} or assignments == {sh: True} or assignments == {bs: True}:
-            return result is True
-        else:
-            return result is False
-
-    for candidate_variables in powerset_set(cm.endogenous_variables()):
-        if candidate_variables:
-            initial_candidate = {variable: True for variable in candidate_variables}
-            for negated_candidate_variables in powerset_set(candidate_variables):
-                candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
-                actual_cause = is_actual_cause(candidate, Atom(bs), cs)
-                assert is_correct(candidate, actual_cause)
-                if actual_cause:
-                    print(f"{assignments2conjunction(candidate)} is an actual cause of {Atom(bs)} in causal setting {cs}")
+    event = Atom(bs)
+    actual_causes = find_actual_causes(event, causal_setting, expected_causes=[{st: True}, {sh: True}, {bs: True}])
+    for actual_cause in actual_causes:
+        print(f"{assignments2conjunction(actual_cause)} is an actual cause of {event} in causal setting {causal_setting}")

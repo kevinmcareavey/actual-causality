@@ -3,7 +3,7 @@ from copy import copy
 from pygraphviz import AGraph
 
 from boolean_combinations import Verum, Falsum, assignments2conjunction, Negation
-from utils import format_dict, powerset_dict
+from utils import format_dict, powerset_dict, powerset_set
 
 
 class Variable:
@@ -126,3 +126,18 @@ def is_actual_cause(candidate, event, causal_setting):
     if not satisfies_ac3(candidate, event, causal_setting):
         return False
     return True
+
+
+def find_actual_causes(event, causal_setting, expected_causes=None):
+    actual_causes = list()
+    for candidate_variables in powerset_set(causal_setting.causal_model.endogenous_variables()):
+        if candidate_variables:
+            initial_candidate = {variable: True for variable in candidate_variables}
+            for negated_candidate_variables in powerset_set(candidate_variables):
+                candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
+                actual_cause = is_actual_cause(candidate, event, causal_setting)
+                if expected_causes:
+                    assert actual_cause == (candidate in expected_causes), f"{actual_cause} != ({candidate} in {expected_causes})"
+                if actual_cause:
+                    actual_causes.append(candidate)
+    return actual_causes
