@@ -92,7 +92,7 @@ def satisfies_ac1(candidate, event, causal_setting):
     return True
 
 
-def satisfies_ac2(candidate, event, causal_setting):
+def find_witnesses_ac2(candidate, event, causal_setting):
     actual_values = causal_setting.values()
 
     x_values = {candidate_variable: actual_values[candidate_variable] for candidate_variable in candidate}
@@ -103,10 +103,15 @@ def satisfies_ac2(candidate, event, causal_setting):
         if subset_x_values:  # at least one X variable must be negated
             x_prime_values = {candidate_variable: not candidate_value if candidate_variable in subset_x_values else candidate_value for candidate_variable, candidate_value in candidate.items()}
             for subset_w_values in powerdict(w_values):
-                casual_formula = CausalFormula({**x_prime_values, **subset_w_values}, Negation(event))
+                witness = {**x_prime_values, **subset_w_values}
+                casual_formula = CausalFormula(witness, Negation(event))
                 if casual_formula.entailed_by(causal_setting):
-                    return True  # witness = {**x_prime_values, **subset_w_values}
+                    yield witness
 
+
+def satisfies_ac2(candidate, event, causal_setting):
+    for _ in find_witnesses_ac2(candidate, event, causal_setting):
+        return True  # there is at least one witness
     return False
 
 
@@ -129,15 +134,21 @@ def is_actual_cause(candidate, event, causal_setting):
 
 
 def find_actual_causes(event, causal_setting, expected_causes=None):
-    actual_causes = list()
     for candidate_variables in powerset(causal_setting.causal_model.endogenous_variables()):
         if candidate_variables:
             initial_candidate = {variable: True for variable in candidate_variables}
             for negated_candidate_variables in powerset(candidate_variables):
                 candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
-                actual_cause = is_actual_cause(candidate, event, causal_setting)
+                candidate_is_actual_cause = is_actual_cause(candidate, event, causal_setting)
                 if expected_causes:
-                    assert actual_cause == (candidate in expected_causes), f"{actual_cause} != ({candidate} in {expected_causes})"
-                if actual_cause:
-                    actual_causes.append(candidate)
-    return actual_causes
+                    assert candidate_is_actual_cause == (candidate in expected_causes)
+                if candidate_is_actual_cause:
+                    yield candidate
+
+
+def degree_of_responsibility(exogenous_variable, value, event, causal_setting):
+    k_values = set()
+    for actual_cause in find_actual_causes(event, causal_setting):
+        if exogenous_variable in actual_cause and actual_cause[exogenous_variable] == value:  # if exogenous_variable=value is "part of a cause"
+            k_values.add(min([len(witness) for witness in find_witnesses_ac2(actual_cause, event, causal_setting)]))
+    return 1 / min(k_values) if k_values else 0
