@@ -93,10 +93,10 @@ def satisfies_ac1(candidate, event, causal_setting):
 
 
 def satisfies_ac2(candidate, event, causal_setting):
-    original_values = causal_setting.values()
+    actual_values = causal_setting.values()
 
-    x_values = {candidate_variable: original_values[candidate_variable] for candidate_variable in candidate}
-    w_values = {witness_variable: original_values[witness_variable] for witness_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
+    x_values = {candidate_variable: actual_values[candidate_variable] for candidate_variable in candidate}
+    w_values = {other_variable: actual_values[other_variable] for other_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
     assert not (x_values.keys() & w_values.keys())  # x_values and w_values should not intersect
 
     for subset_x_values in powerdict(x_values):
