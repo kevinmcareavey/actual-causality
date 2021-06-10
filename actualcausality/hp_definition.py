@@ -3,7 +3,7 @@ from copy import copy
 from pygraphviz import AGraph
 
 from actualcausality.boolean_combinations import assignments2conjunction, Negation, Verum, Falsum
-from actualcausality.utils import format_dict, powerset_dict, powerset_set
+from actualcausality.utils import format_dict, powerdict, powerset
 
 
 class Variable:
@@ -81,7 +81,7 @@ class CausalFormula:
         return self.event.entailed_by(new_causal_setting)
 
     def __str__(self):
-        return f"[{format_dict(self.intervention, delim=';', sep='<-', brackets=False)}]({self.event})"
+        return f"[{format_dict(self.intervention, sep_item='; ', sep_key_value='<-', brackets=False)}]({self.event})"
 
 
 def satisfies_ac1(candidate, event, causal_setting):
@@ -99,19 +99,19 @@ def satisfies_ac2(candidate, event, causal_setting):
     w_values = {witness_variable: original_values[witness_variable] for witness_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
     assert not (x_values.keys() & w_values.keys())  # x_values and w_values should not intersect
 
-    for subset_x_values in powerset_dict(x_values):
+    for subset_x_values in powerdict(x_values):
         if subset_x_values:  # at least one X variable must be negated
             x_prime_values = {candidate_variable: not candidate_value if candidate_variable in subset_x_values else candidate_value for candidate_variable, candidate_value in candidate.items()}
-            for subset_w_values in powerset_dict(w_values):
+            for subset_w_values in powerdict(w_values):
                 casual_formula = CausalFormula({**x_prime_values, **subset_w_values}, Negation(event))
                 if casual_formula.entailed_by(causal_setting):
-                    return True
+                    return True  # witness = {**x_prime_values, **subset_w_values}
 
     return False
 
 
 def satisfies_ac3(candidate, event, causal_setting):
-    for subset_candidate in powerset_dict(candidate):
+    for subset_candidate in powerdict(candidate):
         if subset_candidate != candidate:
             if satisfies_ac1(subset_candidate, event, causal_setting) and satisfies_ac2(subset_candidate, event, causal_setting):
                 return False
@@ -130,10 +130,10 @@ def is_actual_cause(candidate, event, causal_setting):
 
 def find_actual_causes(event, causal_setting, expected_causes=None):
     actual_causes = list()
-    for candidate_variables in powerset_set(causal_setting.causal_model.endogenous_variables()):
+    for candidate_variables in powerset(causal_setting.causal_model.endogenous_variables()):
         if candidate_variables:
             initial_candidate = {variable: True for variable in candidate_variables}
-            for negated_candidate_variables in powerset_set(candidate_variables):
+            for negated_candidate_variables in powerset(candidate_variables):
                 candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
                 actual_cause = is_actual_cause(candidate, event, causal_setting)
                 if expected_causes:
