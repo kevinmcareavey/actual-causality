@@ -58,7 +58,7 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 ![](examples/forest_fire_conjunctive.png)
 
 ### Rock Throwing
-This example involves five endogenous variables: Sally throws a rock `ST`, Billy throws a rock `BT`, Sally hits the bottle `SH`, Billy hits the bottle `BH`, and the bottle shatters `BS`.
+This example involves five endogenous variables: Suzy throws a rock `ST`, Billy throws a rock `BT`, Suzy hits the bottle `SH`, Billy hits the bottle `BH`, and the bottle shatters `BS`.
 The values of these variables are defined in a causal model based on two exogenous variables `U_ST` and `U_BT` where the structural equations are defined as `ST = U_ST`, `BT = U_BT`, `SH = ST`, `BH = (BT & !SH)`, and `BS = (SH | BH)`.
 
 ```python
