@@ -31,7 +31,7 @@ In the conjunctive model the structural equations are defined as `FF = (L & MD)`
 [{FF: True}, {L: True}, {MD: True}]
 ```
 
-![](examples/disjunctive_forest_fire.png)
+![](examples/forest_fire_disjunctive.png)
 
 #### Disjunctive Model
 In the disjunctive model the structural equations are defined as `FF = (L | MD)`, `L = U_L`, and `MD = U_MD`.
@@ -55,7 +55,7 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 [{MD: True, L: True}, {FF: True}]
 ```
 
-![](examples/conjunctive_forest_fire.png)
+![](examples/forest_fire_conjunctive.png)
 
 ### Rock Throwing
 This example involves five endogenous variables: Sally throws a rock `ST`, Billy throws a rock `BT`, Sally hits the bottle `SH`, Billy hits the bottle `BH`, and the bottle shatters `BS`.
