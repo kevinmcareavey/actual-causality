@@ -150,5 +150,5 @@ def degree_of_responsibility(exogenous_variable, value, event, causal_setting):
     k_values = set()
     for actual_cause in find_actual_causes(event, causal_setting):
         if exogenous_variable in actual_cause and actual_cause[exogenous_variable] == value:  # if exogenous_variable=value is "part of a cause"
-            k_values.add(min([len(witness) for witness in find_witnesses_ac2(actual_cause, event, causal_setting)]))
+            k_values.add(min(len(witness) for witness in find_witnesses_ac2(actual_cause, event, causal_setting)))
     return 1 / min(k_values) if k_values else 0
