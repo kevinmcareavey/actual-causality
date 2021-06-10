@@ -2,8 +2,8 @@ from copy import copy
 
 from pygraphviz import AGraph
 
-from boolean_combinations import Verum, Falsum, assignments2conjunction, Negation
-from utils import format_dict, powerset_dict, powerset_set
+from actualcausality.boolean_combinations import assignments2conjunction, Negation, Verum, Falsum
+from actualcausality.utils import format_dict, powerset_dict, powerset_set
 
 
 class Variable:
