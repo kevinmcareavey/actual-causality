@@ -154,3 +154,27 @@ def degree_of_responsibility(endogenous_variable, polarity, event, causal_settin
 def degrees_of_responsibility(event, causal_setting):
     polarities = [True, False]
     return {endogenous_variable: {polarity: degree_of_responsibility(endogenous_variable, polarity, event, causal_setting) for polarity in polarities} for endogenous_variable in causal_setting.causal_model.endogenous_variables()}
+
+
+class EpistemicState:
+    def __init__(self, probabilities, float_error=0.00000000001):
+        self.probabilities = probabilities
+
+        assert abs(sum(self.probabilities.values()) - 1) < float_error
+        first_causal_setting = next(self.causal_settings())
+        exogenous_variables = first_causal_setting.causal_model.exogenous_variables
+        assert all(causal_setting.causal_model.exogenous_variables == exogenous_variables for causal_setting in self.causal_settings())
+        endogenous_variables = first_causal_setting.causal_model.endogenous_variables()
+        assert all(causal_setting.causal_model.endogenous_variables() == endogenous_variables for causal_setting in self.causal_settings())
+
+    def causal_settings(self):
+        return self.probabilities.keys()
+
+
+def degree_of_blame(endogenous_variable, polarity, event, epistemic_state):
+    return sum(degree_of_responsibility(endogenous_variable, polarity, event, causal_setting) * probability for causal_setting, probability in epistemic_state.probabilities.items())
+
+
+def degrees_of_blame(event, epistemic_state):
+    polarities = [True, False]
+    return {endogenous_variable: {polarity: degree_of_blame(endogenous_variable, polarity, event, epistemic_state) for polarity in polarities} for endogenous_variable in epistemic_state.causal_model.endogenous_variables()}
