@@ -36,8 +36,8 @@ class CausalModel:
 
     def intervene(self, intervention):
         new_structural_equations = copy(self.structural_equations)
-        for variable, value in intervention.items():
-            new_structural_equations[variable] = Verum() if value else Falsum()
+        for variable, polarity in intervention.items():
+            new_structural_equations[variable] = Verum() if polarity else Falsum()
         return CausalModel(self.exogenous_variables, new_structural_equations)
 
     def causal_network(self):
@@ -58,13 +58,13 @@ class CausalModel:
 class CausalSetting:
     def __init__(self, causal_model, context):
         self.causal_model = causal_model
-        self.context = context  # dict mapping exogenous variables to values
+        self.context = context  # dict mapping exogenous variables to polarities
 
         assert self.causal_model.exogenous_variables == self.context.keys()
 
-    def values(self):
-        endogenous_values = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
-        return {**self.context, **endogenous_values}
+    def polarities(self):
+        endogenous_polarities = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
+        return {**self.context, **endogenous_polarities}
 
     def __str__(self):
         return f"({format_dict(self.context)}, {format_dict(self.causal_model.structural_equations)})"
@@ -72,7 +72,7 @@ class CausalSetting:
 
 class CausalFormula:
     def __init__(self, intervention, event):
-        self.intervention = intervention  # dict mapping endogenous variables to values
+        self.intervention = intervention  # dict mapping endogenous variables to polarities
         self.event = event  # Boolean formula over endogenous variables
 
     def entailed_by(self, causal_setting):
@@ -93,17 +93,17 @@ def satisfies_ac1(candidate, event, causal_setting):
 
 
 def find_witnesses_ac2(candidate, event, causal_setting):
-    actual_values = causal_setting.values()
+    actual_polarities = causal_setting.polarities()
 
-    x_values = {candidate_variable: actual_values[candidate_variable] for candidate_variable in candidate}
-    w_values = {other_variable: actual_values[other_variable] for other_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
-    assert not (x_values.keys() & w_values.keys())  # x_values and w_values should not intersect
+    x_polarities = {candidate_variable: actual_polarities[candidate_variable] for candidate_variable in candidate}
+    w_polarities = {other_variable: actual_polarities[other_variable] for other_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
+    assert not (x_polarities.keys() & w_polarities.keys())  # x_polarities and w_polarities should not intersect
 
-    for subset_x_values in powerdict(x_values):
-        if subset_x_values:  # at least one X variable must be negated
-            x_prime_values = {candidate_variable: not candidate_value if candidate_variable in subset_x_values else candidate_value for candidate_variable, candidate_value in candidate.items()}
-            for subset_w_values in powerdict(w_values):
-                witness = {**x_prime_values, **subset_w_values}
+    for subset_x_polarities in powerdict(x_polarities):
+        if subset_x_polarities:  # at least one X variable must be negated
+            x_prime_polarities = {candidate_variable: not candidate_polarity if candidate_variable in subset_x_polarities else candidate_polarity for candidate_variable, candidate_polarity in candidate.items()}
+            for subset_w_polarities in powerdict(w_polarities):
+                witness = {**x_prime_polarities, **subset_w_polarities}
                 casual_formula = CausalFormula(witness, Negation(event))
                 if casual_formula.entailed_by(causal_setting):
                     yield witness
@@ -133,22 +133,24 @@ def is_actual_cause(candidate, event, causal_setting):
     return True
 
 
-def find_actual_causes(event, causal_setting, expected_causes=None):
+def find_actual_causes(event, causal_setting):
     for candidate_variables in powerset(causal_setting.causal_model.endogenous_variables()):
         if candidate_variables:
             initial_candidate = {variable: True for variable in candidate_variables}
             for negated_candidate_variables in powerset(candidate_variables):
-                candidate = {variable: not value if variable in negated_candidate_variables else value for variable, value in initial_candidate.items()}
-                candidate_is_actual_cause = is_actual_cause(candidate, event, causal_setting)
-                if expected_causes:
-                    assert candidate_is_actual_cause == (candidate in expected_causes)
-                if candidate_is_actual_cause:
+                candidate = {variable: not polarity if variable in negated_candidate_variables else polarity for variable, polarity in initial_candidate.items()}
+                if is_actual_cause(candidate, event, causal_setting):
                     yield candidate
 
 
-def degree_of_responsibility(exogenous_variable, value, event, causal_setting):
+def degree_of_responsibility(endogenous_variable, polarity, event, causal_setting):
     k_values = set()
     for actual_cause in find_actual_causes(event, causal_setting):
-        if exogenous_variable in actual_cause and actual_cause[exogenous_variable] == value:  # if exogenous_variable=value is "part of a cause"
+        if endogenous_variable in actual_cause and actual_cause[endogenous_variable] == polarity:  # if endogenous_variable=polarity is "part of" this cause
             k_values.add(min(len(witness) for witness in find_witnesses_ac2(actual_cause, event, causal_setting)))
     return 1 / min(k_values) if k_values else 0
+
+
+def degrees_of_responsibility(event, causal_setting):
+    polarities = [True, False]
+    return {endogenous_variable: {polarity: degree_of_responsibility(endogenous_variable, polarity, event, causal_setting) for polarity in polarities} for endogenous_variable in causal_setting.causal_model.endogenous_variables()}

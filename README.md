@@ -14,7 +14,7 @@ In the conjunctive model the structural equations are defined as `FF = (L & MD)`
 
 ```python
 >>> from actualcausality.boolean_combinations import Atom, Conjunction
->>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes
+>>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes, degrees_of_responsibility
 >>> u_l, u_md = Variable("U_L"), Variable("U_MD")
 >>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
 >>> exogenous_variables = {u_l, u_md}
@@ -27,8 +27,10 @@ In the conjunctive model the structural equations are defined as `FF = (L & MD)`
 >>> context = {u_l: True, u_md: True}
 >>> causal_setting = CausalSetting(causal_model, context)
 >>> event = Atom(ff)
->>> find_actual_causes(event, causal_setting, expected_causes=[{ff: True}, {l: True}, {md: True}])
+>>> list(find_actual_causes(event, causal_setting))
 [{FF: True}, {L: True}, {MD: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{FF: {True: 1.0, False: 0}, L: {True: 1.0, False: 0}, MD: {True: 1.0, False: 0}}
 ```
 
 ![](examples/forest_fire_disjunctive.png)
@@ -38,7 +40,7 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 
 ```python
 >>> from actualcausality.boolean_combinations import Atom, Disjunction, Negation
->>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes, CausalFormula
+>>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes, CausalFormula, degrees_of_responsibility
 >>> u_l, u_md = Variable("U_L"), Variable("U_MD")
 >>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
 >>> exogenous_variables = {u_l, u_md}
@@ -51,8 +53,10 @@ In the disjunctive model the structural equations are defined as `FF = (L | MD)`
 >>> context = {u_l: True, u_md: True}
 >>> causal_setting = CausalSetting(causal_model, context)
 >>> event = Atom(ff)
->>> find_actual_causes(event, causal_setting, expected_causes=[{ff: True}, {l: True, md: True}])
-[{MD: True, L: True}, {FF: True}]
+>>> list(find_actual_causes(event, causal_setting))
+[{FF: True}, {L: True, MD: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{L: {True: 0.5, False: 0}, FF: {True: 1.0, False: 0}, MD: {True: 0.5, False: 0}}
 ```
 
 ![](examples/forest_fire_conjunctive.png)
@@ -63,7 +67,7 @@ The values of these variables are defined in a causal model based on two exogeno
 
 ```python
 >>> from actualcausality.boolean_combinations import Atom, Conjunction, Negation, Disjunction
->>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel
+>>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
 >>> u_st, u_bt = Variable("U_ST"), Variable("U_BT")
 >>> st, bt, sh, bh, bs = Variable("ST"), Variable("BT"), Variable("SH"), Variable("BH"), Variable("BS")
 >>> exogenous_variables = {u_st, u_bt}
@@ -78,8 +82,10 @@ The values of these variables are defined in a causal model based on two exogeno
 >>> context = {u_st: True, u_bt: True}
 >>> causal_setting = CausalSetting(causal_model, context)
 >>> event = Atom(bs)
->>> find_actual_causes(event, causal_setting, expected_causes=[{st: True}, {sh: True}, {bs: True}])
-[{SH: True}, {ST: True}, {BS: True}]
+>>> list(find_actual_causes(event, causal_setting))
+[{ST: True}, {SH: True}, {BS: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{BT: {True: 0, False: 0}, BH: {True: 0, False: 0}, ST: {True: 0.5, False: 0}, SH: {True: 0.5, False: 0}, BS: {True: 1.0, False: 0}}
 ```
 
 ![](examples/rock_throwing.png)

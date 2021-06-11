@@ -97,8 +97,8 @@ def assignments2conjunction(assignments, right_child=None):
     if not assignments:
         return Verum()
     assignments_remainder = copy(assignments)
-    variable, value = assignments_remainder.popitem()  # pops items in reverse order, which is important for respecting order of operations
+    variable, polarity = assignments_remainder.popitem()  # pops items in reverse order, which is important for respecting order of operations
     atom = Atom(variable)
-    literal = atom if value else Negation(atom)
+    literal = atom if polarity else Negation(atom)
     formula = Conjunction(literal, right_child) if right_child else literal
     return assignments2conjunction(assignments_remainder, formula) if assignments_remainder else formula
