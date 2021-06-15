@@ -90,6 +90,34 @@ The values of these variables are defined in a causal model based on two exogeno
 
 ![](examples/rock_throwing.png)
 
+### Voting
+This example involves four endogenous variables: person 1 votes for Suzy `V1`, person 2 votes for Suzy `V2`, person 3 votes for Suzy `V3`, and Suzy wins `W`.
+The values of these variables are defined in a causal model based on three exogenous variables `U_V1`, `U_V2`, and `U_V3` where the structural equations are defined as `V1 = U_V1`, `V2 = U_V2`, `V3 = U_V3`, and `W = ((V1 & V2) | (V1 & V3) | (V2 & V3))`.
+
+```python
+>>> from actualcausality.boolean_combinations import Atom, Conjunction, Disjunction
+>>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
+>>> u_v1, u_v2, u_v3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
+>>> v1, v2, v3, w = Variable("V1"), Variable("V2"), Variable("V3"), Variable("W")
+>>> exogenous_variables = {u_v1, u_v2, u_v3}
+>>> structural_equations = {
+...     v1: Atom(u_v1),
+...     v2: Atom(u_v2),
+...     v3: Atom(u_v3),
+...     w: Disjunction(Disjunction(Conjunction(Atom(v1), Atom(v2)), Conjunction(Atom(v1), Atom(v3))), Conjunction(Atom(v2), Atom(v3)))
+... }
+>>> causal_model = CausalModel(exogenous_variables, structural_equations)
+>>> context = {u_v1: True, u_v2: True, u_v3: True}
+>>> causal_setting = CausalSetting(causal_model, context)
+>>> event = Atom(w)
+>>> list(find_actual_causes(event, causal_setting))
+[{V1: True, V3: True}, {V1: True, V2: True}, {V3: True, V2: True}, {W: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{V1: {True: 0.5, False: 0}, V3: {True: 0.5, False: 0}, V2: {True: 0.5, False: 0}, W: {True: 1.0, False: 0}}
+```
+
+![](examples/voting.png)
+
 ### Double Prevention
 This example involves seven endogenous variables: Billy goes up `BGU`, enemy shows up `ESU`, Billy pulls trigger `BPT`, enemy eludes `EE`, enemy shoots Suzy `ESS`, Suzy bombs target `SBT`, and target is destroyed `TD`.
 The values of these variables are defined in a causal model based on two exogenous variables `U_BGU` and `U_ESU` where the structural equations are defined as `BGU = U_BGU`, `ESU = U_ESU`, `BPT = (BGU & ESU)`, `EE = (ESU & !BPT)`, `ESS = EE`, `SBT = !ESS`, and `TD = SBT`.

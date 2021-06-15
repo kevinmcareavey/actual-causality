@@ -25,4 +25,3 @@ expected_causes = [{esu: False}, {ee: False}, {ess: False}, {sbt: True}, {td: Tr
 assert {frozenset(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)} == {frozenset(expected_cause) for expected_cause in expected_causes}
 expected_degrees_of_responsibility = {bgu: {True: 0, False: 0}, esu: {True: 0, False: 0.5}, bpt: {True: 0, False: 0}, ee: {True: 0, False: 1.0}, ess: {True: 0, False: 1.0}, sbt: {True: 1.0, False: 0}, td: {True: 1.0, False: 0}}
 assert degrees_of_responsibility(event, causal_setting) == expected_degrees_of_responsibility
-
