@@ -90,6 +90,37 @@ The values of these variables are defined in a causal model based on two exogeno
 
 ![](examples/rock_throwing.png)
 
+### Double Prevention
+This example involves seven endogenous variables: Billy goes up `BGU`, enemy shows up `ESU`, Billy pulls trigger `BPT`, enemy eludes `EE`, enemy shoots Suzy `ESS`, Suzy bombs target `SBT`, and target is destroyed `TD`.
+The values of these variables are defined in a causal model based on two exogenous variables `U_BGU` and `U_ESU` where the structural equations are defined as `BGU = U_BGU`, `ESU = U_ESU`, `BPT = (BGU & ESU)`, `EE = (ESU & !BPT)`, `ESS = EE`, `SBT = !ESS`, and `TD = SBT`.
+
+```python
+>>> from actualcausality.boolean_combinations import Atom, Negation, Conjunction
+>>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
+>>> u_bgu, u_esu = Variable("U_BGU"), Variable("U_ESU")
+>>> bgu, esu, bpt, ee, ess, sbt, td = Variable("BGU"), Variable("ESU"), Variable("BPT"), Variable("EE"), Variable("ESS"), Variable("SBT"), Variable("TD")
+>>> exogenous_variables = {u_bgu, u_esu}
+>>> structural_equations = {
+...     bgu: Atom(u_bgu),
+...     esu: Atom(u_esu),
+...     bpt: Conjunction(Atom(bgu), Atom(esu)),
+...     ee: Conjunction(Atom(esu), Negation(Atom(bpt))),
+...     ess: Atom(ee),
+...     sbt: Negation(Atom(ess)),
+...     td: Atom(sbt)
+... }
+>>> causal_model = CausalModel(exogenous_variables, structural_equations)
+>>> context = {u_bgu: True, u_esu: False}
+>>> causal_setting = CausalSetting(causal_model, context)
+>>> event = Atom(td)
+>>> list(find_actual_causes(event, causal_setting))
+[{ESS: False}, {SBT: True}, {ESU: False}, {EE: False}, {TD: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{ESS: {True: 0, False: 1.0}, BGU: {True: 0, False: 0}, BPT: {True: 0, False: 0}, SBT: {True: 1.0, False: 0}, ESU: {True: 0, False: 0.5}, EE: {True: 0, False: 1.0}, TD: {True: 1.0, False: 0}}
+```
+
+![](examples/double_prevention.png)
+
 # Related Software
 - [hp2sat](https://github.com/amjadKhalifah/HP2SAT1.0): Java library for actual causality computation
 
