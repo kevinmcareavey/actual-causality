@@ -149,6 +149,34 @@ The values of these variables are defined in a causal model based on two exogeno
 
 ![](examples/double_prevention.png)
 
+### Railroad
+This example involves four endogenous variables: engineer flips the switch `F`, left track is blocked `LB`, right track is blocked `RB`, and the train arrives `A`.
+The values of these variables are defined in a causal model based on three exogenous variables `U_F`, `U_LB`, and `U_RB` where the structural equations are defined as `F = U_F`, `LB = U_LB`, `RB = U_RB`, and `A = ((F & !LB) | (!F & !RB))`.
+
+```python
+>>> from actualcausality.boolean_combinations import Atom, Conjunction, Negation, Disjunction
+>>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
+>>> u_f, u_lb, u_rb = Variable("U_F"), Variable("U_LB"), Variable("U_RB")
+>>> f, lb, rb, a = Variable("F"), Variable("LB"), Variable("RB"), Variable("A")
+>>> exogenous_variables = {u_f, u_lb, u_rb}
+>>> structural_equations = {
+...     f: Atom(u_f),
+...     lb: Atom(u_lb),
+...     rb: Atom(u_rb),
+...     a: Disjunction(Conjunction(Atom(f), Negation(Atom(lb))), Conjunction(Negation(Atom(f)), Negation(Atom(rb))))
+... }
+>>> causal_model = CausalModel(exogenous_variables, structural_equations)
+>>> context = {u_f: True, u_lb: False, u_rb: False}
+>>> causal_setting = CausalSetting(causal_model, context)
+>>> event = Atom(a)
+>>> list(find_actual_causes(event, causal_setting))
+[{LB: False}, {A: True}, {F: True, RB: False}]
+>>> degrees_of_responsibility(event, causal_setting)
+{F: {True: 0.5, False: 0}, LB: {True: 0, False: 1.0}, A: {True: 1.0, False: 0}, RB: {True: 0, False: 0.5}}
+```
+
+![](examples/railroad.png)
+
 # Related Software
 - [hp2sat](https://github.com/amjadKhalifah/HP2SAT1.0): Java library for actual causality computation
 
