@@ -66,6 +66,16 @@ class CausalSetting:
         endogenous_polarities = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
         return {**self.context, **endogenous_polarities}
 
+    def find_candidate_causes(self):
+        for candidate_variables in powerset(self.causal_model.endogenous_variables()):
+            if candidate_variables:
+                initial_candidate = {variable: True for variable in candidate_variables}
+                for negated_candidate_variables in powerset(candidate_variables):
+                    yield {variable: not polarity if variable in negated_candidate_variables else polarity for variable, polarity in initial_candidate.items()}
+
+    def value(self, variable):
+        return self.context[variable] if variable in self.context else self.causal_model.structural_equations[variable](self)
+
     def __str__(self):
         return f"({format_dict(self.context)}, {format_dict(self.causal_model.structural_equations)})"
 
@@ -134,13 +144,9 @@ def is_actual_cause(candidate, event, causal_setting):
 
 
 def find_actual_causes(event, causal_setting):
-    for candidate_variables in powerset(causal_setting.causal_model.endogenous_variables()):
-        if candidate_variables:
-            initial_candidate = {variable: True for variable in candidate_variables}
-            for negated_candidate_variables in powerset(candidate_variables):
-                candidate = {variable: not polarity if variable in negated_candidate_variables else polarity for variable, polarity in initial_candidate.items()}
-                if is_actual_cause(candidate, event, causal_setting):
-                    yield candidate
+    for candidate in causal_setting.find_candidate_causes():
+        if is_actual_cause(candidate, event, causal_setting):
+            yield candidate
 
 
 def degree_of_responsibility(endogenous_variable, polarity, event, causal_setting):
@@ -161,7 +167,7 @@ class EpistemicState:
         self.probabilities = probabilities
 
         assert abs(sum(self.probabilities.values()) - 1) < float_error
-        first_causal_setting = next(self.causal_settings())
+        first_causal_setting = next(iter(self.causal_settings()))
         exogenous_variables = first_causal_setting.causal_model.exogenous_variables
         assert all(causal_setting.causal_model.exogenous_variables == exogenous_variables for causal_setting in self.causal_settings())
         endogenous_variables = first_causal_setting.causal_model.endogenous_variables()
