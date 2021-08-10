@@ -1,24 +1,31 @@
-from actualcausality.boolean_combinations import Atom, Conjunction, Disjunction
-from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
-u_v1, u_v2, u_v3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
-v1, v2, v3, w = Variable("V1"), Variable("V2"), Variable("V3"), Variable("W")
-exogenous_variables = {u_v1, u_v2, u_v3}
-structural_equations = {
-    v1: Atom(u_v1),
-    v2: Atom(u_v2),
-    v3: Atom(u_v3),
-    w: Disjunction(Disjunction(Conjunction(Atom(v1), Atom(v2)), Conjunction(Atom(v1), Atom(v3))), Conjunction(Atom(v2), Atom(v3)))
+from frozendict import frozendict
+from actualcausality.boolean_combinations import PrimitiveEvent
+from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+U_V1, U_V2, U_V3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
+V1, V2, V3, W = Variable("V1"), Variable("V2"), Variable("V3"), Variable("W")
+exogenous_variables = {U_V1, U_V2, U_V3}
+endogenous_domains = {
+    V1: {False, True},
+    V2: {False, True},
+    V3: {False, True},
+    W: {False, True}
 }
-causal_model = CausalModel(exogenous_variables, structural_equations)
-context = {u_v1: True, u_v2: True, u_v3: True}
-causal_setting = CausalSetting(causal_model, context)
-event = Atom(w)
+causal_network = CausalNetwork()
+causal_network.add_dependency(V1, [U_V1], lambda parent_values: parent_values[U_V1])
+causal_network.add_dependency(V2, [U_V2], lambda parent_values: parent_values[U_V2])
+causal_network.add_dependency(V3, [U_V3], lambda parent_values: parent_values[U_V3])
+causal_network.add_dependency(W, [V1, V2, V3], lambda parent_values: ((parent_values[V1] and parent_values[V2]) or (parent_values[V1] and parent_values[V3])) or (parent_values[V2] and parent_values[V3]))
+context = {U_V1: True, U_V2: True, U_V3: True}
+causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+event = PrimitiveEvent(W, True)
 list(find_actual_causes(event, causal_setting))
 degrees_of_responsibility(event, causal_setting)
 
-causal_model.causal_network().draw("voting.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+causal_network.write("voting.png")
 
-expected_causes = [{v1: True, v2: True}, {v1: True, v3: True}, {v2: True, v3: True}, {w: True}]
-assert {frozenset(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)} == {frozenset(expected_cause) for expected_cause in expected_causes}
-expected_degrees_of_responsibility = {v1: {True: 0.5, False: 0}, v2: {True: 0.5, False: 0}, v3: {True: 0.5, False: 0}, w: {True: 1.0, False: 0}}
-assert degrees_of_responsibility(event, causal_setting) == expected_degrees_of_responsibility
+actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
+expected_causes = [{V1: True, V2: True}, {V1: True, V3: True}, {V2: True, V3: True}, {W: True}]
+assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+actual_degrees_of_responsibility = degrees_of_responsibility(event, causal_setting)
+expected_degrees_of_responsibility = {V1: {True: 0.5, False: 0}, V2: {True: 0.5, False: 0}, V3: {True: 0.5, False: 0}, W: {True: 1.0, False: 0}}
+assert actual_degrees_of_responsibility == expected_degrees_of_responsibility

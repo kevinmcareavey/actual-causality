@@ -1,7 +1,7 @@
 # PyActualCausality
 A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality.
 
-*Note that causal models are restricted to those with Boolean variables and structural equations are restricted to propositional formulas.*
+*Note that causal models are restricted to those with finite-domain endogenous variables and structural equations expressed using Python lambda expressions.*
 
 ## Examples
 
@@ -13,24 +13,28 @@ The values of these variables are defined in two different causal models, known 
 In the conjunctive model the structural equations are defined as `FF = (L & MD)`, `L = U_L`, and `MD = U_MD`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Conjunction
->>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes, degrees_of_responsibility
->>> u_l, u_md = Variable("U_L"), Variable("U_MD")
->>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
->>> exogenous_variables = {u_l, u_md}
->>> structural_equations = {
-...     ff: Conjunction(Atom(l), Atom(md)),
-...     l: Atom(u_l),
-...     md: Atom(u_md)
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> U_L, U_MD = Variable("U_L"), Variable("U_MD")
+>>> FF, L, MD = Variable("FF"), Variable("L"), Variable("MD")
+>>> exogenous_variables = {U_L, U_MD}
+>>> endogenous_domains = {
+...     FF: {False, True},
+...     L: {False, True},
+...     MD: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_l: True, u_md: True}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(ff)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(FF, [L, MD], lambda parent_values: parent_values[L] and parent_values[MD])
+>>> causal_network.add_dependency(L, [U_L], lambda parent_values: parent_values[U_L])
+>>> causal_network.add_dependency(MD, [U_MD], lambda parent_values: parent_values[U_MD])
+>>> context = {U_L: True, U_MD: True}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(FF, True)
 >>> list(find_actual_causes(event, causal_setting))
 [{FF: True}, {L: True}, {MD: True}]
 >>> degrees_of_responsibility(event, causal_setting)
-{FF: {True: 1.0, False: 0}, L: {True: 1.0, False: 0}, MD: {True: 1.0, False: 0}}
+{FF: {False: 0, True: 1.0}, L: {False: 0, True: 1.0}, MD: {False: 0, True: 1.0}}
 ```
 
 ![](examples/forest_fire_disjunctive.png)
@@ -39,24 +43,28 @@ In the conjunctive model the structural equations are defined as `FF = (L & MD)`
 In the disjunctive model the structural equations are defined as `FF = (L | MD)`, `L = U_L`, and `MD = U_MD`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Disjunction, Negation
->>> from actualcausality.hp_definition import CausalModel, CausalSetting, Variable, find_actual_causes, CausalFormula, degrees_of_responsibility
->>> u_l, u_md = Variable("U_L"), Variable("U_MD")
->>> ff, l, md = Variable("FF"), Variable("L"), Variable("MD")
->>> exogenous_variables = {u_l, u_md}
->>> structural_equations = {
-...     ff: Disjunction(Atom(l), Atom(md)),
-...     l: Atom(u_l),
-...     md: Atom(u_md)
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent, Negation
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility, CausalFormula
+>>> U_L, U_MD = Variable("U_L"), Variable("U_MD")
+>>> FF, L, MD = Variable("FF"), Variable("L"), Variable("MD")
+>>> exogenous_variables = {U_L, U_MD}
+>>> endogenous_domains = {
+...     FF: {False, True},
+...     L: {False, True},
+...     MD: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_l: True, u_md: True}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(ff)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(FF, [L, MD], lambda parent_values: parent_values[L] or parent_values[MD])
+>>> causal_network.add_dependency(L, [U_L], lambda parent_values: parent_values[U_L])
+>>> causal_network.add_dependency(MD, [U_MD], lambda parent_values: parent_values[U_MD])
+>>> context = {U_L: True, U_MD: True}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(FF, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{FF: True}, {L: True, MD: True}]
+[{FF: True}, {MD: True, L: True}]
 >>> degrees_of_responsibility(event, causal_setting)
-{L: {True: 0.5, False: 0}, FF: {True: 1.0, False: 0}, MD: {True: 0.5, False: 0}}
+{FF: {False: 0, True: 1.0}, L: {False: 0, True: 0.5}, MD: {False: 0, True: 0.5}}
 ```
 
 ![](examples/forest_fire_conjunctive.png)
@@ -66,26 +74,32 @@ This example involves five endogenous variables: Suzy throws a rock `ST`, Billy 
 The values of these variables are defined in a causal model based on two exogenous variables `U_ST` and `U_BT` where the structural equations are defined as `ST = U_ST`, `BT = U_BT`, `SH = ST`, `BH = (BT & !SH)`, and `BS = (SH | BH)`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Conjunction, Negation, Disjunction
->>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
->>> u_st, u_bt = Variable("U_ST"), Variable("U_BT")
->>> st, bt, sh, bh, bs = Variable("ST"), Variable("BT"), Variable("SH"), Variable("BH"), Variable("BS")
->>> exogenous_variables = {u_st, u_bt}
->>> structural_equations = {
-...     st: Atom(u_st),
-...     bt: Atom(u_bt),
-...     sh: Atom(st),
-...     bh: Conjunction(Atom(bt), Negation(Atom(sh))),
-...     bs: Disjunction(Atom(sh), Atom(bh))
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> U_ST, U_BT = Variable("U_ST"), Variable("U_BT")
+>>> ST, BT, SH, BH, BS = Variable("ST"), Variable("BT"), Variable("SH"), Variable("BH"), Variable("BS")
+>>> exogenous_variables = {U_ST, U_BT}
+>>> endogenous_domains = {
+...     ST: {False, True},
+...     BT: {False, True},
+...     SH: {False, True},
+...     BH: {False, True},
+...     BS: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_st: True, u_bt: True}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(bs)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(ST, [U_ST], lambda parent_values: parent_values[U_ST])
+>>> causal_network.add_dependency(BT, [U_BT], lambda parent_values: parent_values[U_BT])
+>>> causal_network.add_dependency(SH, [ST], lambda parent_values: parent_values[ST])
+>>> causal_network.add_dependency(BH, [BT, SH], lambda parent_values: parent_values[BT] and not parent_values[SH])
+>>> causal_network.add_dependency(BS, [SH, BH], lambda parent_values: parent_values[SH] or parent_values[BH])
+>>> context = {U_ST: True, U_BT: True}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(BS, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{ST: True}, {SH: True}, {BS: True}]
+[{SH: True}, {BS: True}, {ST: True}]
 >>> degrees_of_responsibility(event, causal_setting)
-{BT: {True: 0, False: 0}, BH: {True: 0, False: 0}, ST: {True: 0.5, False: 0}, SH: {True: 0.5, False: 0}, BS: {True: 1.0, False: 0}}
+{ST: {False: 0, True: 0.5}, BT: {False: 0, True: 0}, SH: {False: 0, True: 0.5}, BH: {False: 0, True: 0}, BS: {False: 0, True: 1.0}}
 ```
 
 ![](examples/rock_throwing.png)
@@ -95,25 +109,30 @@ This example involves four endogenous variables: person 1 votes for Suzy `V1`, p
 The values of these variables are defined in a causal model based on three exogenous variables `U_V1`, `U_V2`, and `U_V3` where the structural equations are defined as `V1 = U_V1`, `V2 = U_V2`, `V3 = U_V3`, and `W = ((V1 & V2) | (V1 & V3) | (V2 & V3))`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Conjunction, Disjunction
->>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
->>> u_v1, u_v2, u_v3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
->>> v1, v2, v3, w = Variable("V1"), Variable("V2"), Variable("V3"), Variable("W")
->>> exogenous_variables = {u_v1, u_v2, u_v3}
->>> structural_equations = {
-...     v1: Atom(u_v1),
-...     v2: Atom(u_v2),
-...     v3: Atom(u_v3),
-...     w: Disjunction(Disjunction(Conjunction(Atom(v1), Atom(v2)), Conjunction(Atom(v1), Atom(v3))), Conjunction(Atom(v2), Atom(v3)))
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> U_V1, U_V2, U_V3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
+>>> V1, V2, V3, W = Variable("V1"), Variable("V2"), Variable("V3"), Variable("W")
+>>> exogenous_variables = {U_V1, U_V2, U_V3}
+>>> endogenous_domains = {
+...     V1: {False, True},
+...     V2: {False, True},
+...     V3: {False, True},
+...     W: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_v1: True, u_v2: True, u_v3: True}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(w)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(V1, [U_V1], lambda parent_values: parent_values[U_V1])
+>>> causal_network.add_dependency(V2, [U_V2], lambda parent_values: parent_values[U_V2])
+>>> causal_network.add_dependency(V3, [U_V3], lambda parent_values: parent_values[U_V3])
+>>> causal_network.add_dependency(W, [V1, V2, V3], lambda parent_values: ((parent_values[V1] and parent_values[V2]) or (parent_values[V1] and parent_values[V3])) or (parent_values[V2] and parent_values[V3]))
+>>> context = {U_V1: True, U_V2: True, U_V3: True}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(W, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{V1: True, V3: True}, {V1: True, V2: True}, {V3: True, V2: True}, {W: True}]
+[{W: True}, {V3: True, V2: True}, {V3: True, V1: True}, {V2: True, V1: True}]
 >>> degrees_of_responsibility(event, causal_setting)
-{V1: {True: 0.5, False: 0}, V3: {True: 0.5, False: 0}, V2: {True: 0.5, False: 0}, W: {True: 1.0, False: 0}}
+{V1: {False: 0, True: 0.5}, V2: {False: 0, True: 0.5}, V3: {False: 0, True: 0.5}, W: {False: 0, True: 1.0}}
 ```
 
 ![](examples/voting.png)
@@ -123,28 +142,36 @@ This example involves seven endogenous variables: Billy goes up `BGU`, enemy sho
 The values of these variables are defined in a causal model based on two exogenous variables `U_BGU` and `U_ESU` where the structural equations are defined as `BGU = U_BGU`, `ESU = U_ESU`, `BPT = (BGU & ESU)`, `EE = (ESU & !BPT)`, `ESS = EE`, `SBT = !ESS`, and `TD = SBT`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Negation, Conjunction
->>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
->>> u_bgu, u_esu = Variable("U_BGU"), Variable("U_ESU")
->>> bgu, esu, bpt, ee, ess, sbt, td = Variable("BGU"), Variable("ESU"), Variable("BPT"), Variable("EE"), Variable("ESS"), Variable("SBT"), Variable("TD")
->>> exogenous_variables = {u_bgu, u_esu}
->>> structural_equations = {
-...     bgu: Atom(u_bgu),
-...     esu: Atom(u_esu),
-...     bpt: Conjunction(Atom(bgu), Atom(esu)),
-...     ee: Conjunction(Atom(esu), Negation(Atom(bpt))),
-...     ess: Atom(ee),
-...     sbt: Negation(Atom(ess)),
-...     td: Atom(sbt)
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> U_BGU, U_ESU = Variable("U_BGU"), Variable("U_ESU")
+>>> BGU, ESU, BPT, EE, ESS, SBT, TD = Variable("BGU"), Variable("ESU"), Variable("BPT"), Variable("EE"), Variable("ESS"), Variable("SBT"), Variable("TD")
+>>> exogenous_variables = {U_BGU, U_ESU}
+>>> endogenous_domains = {
+...     BGU: {False, True},
+...     ESU: {False, True},
+...     BPT: {False, True},
+...     EE: {False, True},
+...     ESS: {False, True},
+...     SBT: {False, True},
+...     TD: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_bgu: True, u_esu: False}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(td)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(BGU, [U_BGU], lambda parent_values: parent_values[U_BGU])
+>>> causal_network.add_dependency(ESU, [U_ESU], lambda parent_values: parent_values[U_ESU])
+>>> causal_network.add_dependency(BPT, [BGU, ESU], lambda parent_values: parent_values[BGU] and parent_values[ESU])
+>>> causal_network.add_dependency(EE, [ESU, BPT], lambda parent_values: parent_values[ESU] and not parent_values[BPT])
+>>> causal_network.add_dependency(ESS, [EE], lambda parent_values: parent_values[EE])
+>>> causal_network.add_dependency(SBT, [ESS], lambda parent_values: not parent_values[ESS])
+>>> causal_network.add_dependency(TD, [SBT], lambda parent_values: parent_values[SBT])
+>>> context = {U_BGU: True, U_ESU: False}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(TD, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{ESS: False}, {SBT: True}, {ESU: False}, {EE: False}, {TD: True}]
+[{ESU: False}, {EE: False}, {SBT: True}, {TD: True}, {ESS: False}]
 >>> degrees_of_responsibility(event, causal_setting)
-{ESS: {True: 0, False: 1.0}, BGU: {True: 0, False: 0}, BPT: {True: 0, False: 0}, SBT: {True: 1.0, False: 0}, ESU: {True: 0, False: 0.5}, EE: {True: 0, False: 1.0}, TD: {True: 1.0, False: 0}}
+{BGU: {False: 0, True: 0}, ESU: {False: 0.5, True: 0}, BPT: {False: 0, True: 0}, EE: {False: 1.0, True: 0}, ESS: {False: 1.0, True: 0}, SBT: {False: 0, True: 1.0}, TD: {False: 0, True: 1.0}}
 ```
 
 ![](examples/double_prevention.png)
@@ -154,25 +181,30 @@ This example involves four endogenous variables: engineer flips the switch `F`, 
 The values of these variables are defined in a causal model based on three exogenous variables `U_F`, `U_LB`, and `U_RB` where the structural equations are defined as `F = U_F`, `LB = U_LB`, `RB = U_RB`, and `A = ((F & !LB) | (!F & !RB))`.
 
 ```python
->>> from actualcausality.boolean_combinations import Atom, Conjunction, Negation, Disjunction
->>> from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
->>> u_f, u_lb, u_rb = Variable("U_F"), Variable("U_LB"), Variable("U_RB")
->>> f, lb, rb, a = Variable("F"), Variable("LB"), Variable("RB"), Variable("A")
->>> exogenous_variables = {u_f, u_lb, u_rb}
->>> structural_equations = {
-...     f: Atom(u_f),
-...     lb: Atom(u_lb),
-...     rb: Atom(u_rb),
-...     a: Disjunction(Conjunction(Atom(f), Negation(Atom(lb))), Conjunction(Negation(Atom(f)), Negation(Atom(rb))))
+>>> from frozendict import frozendict
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> U_F, U_LB, U_RB = Variable("U_F"), Variable("U_LB"), Variable("U_RB")
+>>> F, LB, RB, A = Variable("F"), Variable("LB"), Variable("RB"), Variable("A")
+>>> exogenous_variables = {U_F, U_LB, U_RB}
+>>> endogenous_domains = {
+...     F: {False, True},
+...     LB: {False, True},
+...     RB: {False, True},
+...     A: {False, True}
 ... }
->>> causal_model = CausalModel(exogenous_variables, structural_equations)
->>> context = {u_f: True, u_lb: False, u_rb: False}
->>> causal_setting = CausalSetting(causal_model, context)
->>> event = Atom(a)
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(F, [U_F], lambda parent_values: parent_values[U_F])
+>>> causal_network.add_dependency(LB, [U_LB], lambda parent_values: parent_values[U_LB])
+>>> causal_network.add_dependency(RB, [U_RB], lambda parent_values: parent_values[U_RB])
+>>> causal_network.add_dependency(A, [F, LB, RB], lambda parent_values: (parent_values[F] and not parent_values[LB]) or (not parent_values[F] and not parent_values[RB]))
+>>> context = {U_F: True, U_LB: False, U_RB: False}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(A, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{LB: False}, {A: True}, {F: True, RB: False}]
+[{F: True, RB: False}, {A: True}, {LB: False}]
 >>> degrees_of_responsibility(event, causal_setting)
-{F: {True: 0.5, False: 0}, LB: {True: 0, False: 1.0}, A: {True: 1.0, False: 0}, RB: {True: 0, False: 0.5}}
+{F: {False: 0, True: 0.5}, LB: {False: 1.0, True: 0}, RB: {False: 0.5, True: 0}, A: {False: 0, True: 1.0}}
 ```
 
 ![](examples/railroad.png)

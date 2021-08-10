@@ -1,27 +1,37 @@
-from actualcausality.boolean_combinations import Atom, Negation, Conjunction
-from actualcausality.hp_definition import Variable, CausalSetting, find_actual_causes, CausalModel, degrees_of_responsibility
-u_bgu, u_esu = Variable("U_BGU"), Variable("U_ESU")
-bgu, esu, bpt, ee, ess, sbt, td = Variable("BGU"), Variable("ESU"), Variable("BPT"), Variable("EE"), Variable("ESS"), Variable("SBT"), Variable("TD")
-exogenous_variables = {u_bgu, u_esu}
-structural_equations = {
-    bgu: Atom(u_bgu),
-    esu: Atom(u_esu),
-    bpt: Conjunction(Atom(bgu), Atom(esu)),
-    ee: Conjunction(Atom(esu), Negation(Atom(bpt))),
-    ess: Atom(ee),
-    sbt: Negation(Atom(ess)),
-    td: Atom(sbt)
+from frozendict import frozendict
+from actualcausality.boolean_combinations import PrimitiveEvent
+from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+U_BGU, U_ESU = Variable("U_BGU"), Variable("U_ESU")
+BGU, ESU, BPT, EE, ESS, SBT, TD = Variable("BGU"), Variable("ESU"), Variable("BPT"), Variable("EE"), Variable("ESS"), Variable("SBT"), Variable("TD")
+exogenous_variables = {U_BGU, U_ESU}
+endogenous_domains = {
+    BGU: {False, True},
+    ESU: {False, True},
+    BPT: {False, True},
+    EE: {False, True},
+    ESS: {False, True},
+    SBT: {False, True},
+    TD: {False, True}
 }
-causal_model = CausalModel(exogenous_variables, structural_equations)
-context = {u_bgu: True, u_esu: False}
-causal_setting = CausalSetting(causal_model, context)
-event = Atom(td)
+causal_network = CausalNetwork()
+causal_network.add_dependency(BGU, [U_BGU], lambda parent_values: parent_values[U_BGU])
+causal_network.add_dependency(ESU, [U_ESU], lambda parent_values: parent_values[U_ESU])
+causal_network.add_dependency(BPT, [BGU, ESU], lambda parent_values: parent_values[BGU] and parent_values[ESU])
+causal_network.add_dependency(EE, [ESU, BPT], lambda parent_values: parent_values[ESU] and not parent_values[BPT])
+causal_network.add_dependency(ESS, [EE], lambda parent_values: parent_values[EE])
+causal_network.add_dependency(SBT, [ESS], lambda parent_values: not parent_values[ESS])
+causal_network.add_dependency(TD, [SBT], lambda parent_values: parent_values[SBT])
+context = {U_BGU: True, U_ESU: False}
+causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+event = PrimitiveEvent(TD, True)
 list(find_actual_causes(event, causal_setting))
 degrees_of_responsibility(event, causal_setting)
 
-causal_model.causal_network().draw("double_prevention.png", prog="dot")  # prog=neato|dot|twopi|circo|fdp|nop
+causal_network.write("double_prevention.png")
 
-expected_causes = [{esu: False}, {ee: False}, {ess: False}, {sbt: True}, {td: True}]
-assert {frozenset(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)} == {frozenset(expected_cause) for expected_cause in expected_causes}
-expected_degrees_of_responsibility = {bgu: {True: 0, False: 0}, esu: {True: 0, False: 0.5}, bpt: {True: 0, False: 0}, ee: {True: 0, False: 1.0}, ess: {True: 0, False: 1.0}, sbt: {True: 1.0, False: 0}, td: {True: 1.0, False: 0}}
+actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
+expected_causes = [{ESU: False}, {EE: False}, {ESS: False}, {SBT: True}, {TD: True}]
+assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+actual_degrees_of_responsibility = degrees_of_responsibility(event, causal_setting)
+expected_degrees_of_responsibility = {BGU: {True: 0, False: 0}, ESU: {True: 0, False: 0.5}, BPT: {True: 0, False: 0}, EE: {True: 0, False: 1.0}, ESS: {True: 0, False: 1.0}, SBT: {True: 1.0, False: 0}, TD: {True: 1.0, False: 0}}
 assert degrees_of_responsibility(event, causal_setting) == expected_degrees_of_responsibility

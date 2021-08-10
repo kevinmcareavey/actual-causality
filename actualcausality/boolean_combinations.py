@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod, ABCMeta
 from copy import copy
 
 
-class BooleanFormula(ABC):
+class Event(ABC):
     @abstractmethod
     def entailed_by(self, causal_setting):
         raise NotImplemented
@@ -15,7 +15,7 @@ class BooleanFormula(ABC):
         return self.__str__()
 
 
-class Verum(BooleanFormula):
+class Verum(Event):
     def entailed_by(self, causal_setting):
         return True
 
@@ -26,7 +26,7 @@ class Verum(BooleanFormula):
         return "True"
 
 
-class Falsum(BooleanFormula):
+class Falsum(Event):
     def entailed_by(self, causal_setting):
         return False
 
@@ -37,24 +37,22 @@ class Falsum(BooleanFormula):
         return "False"
 
 
-class Atom(BooleanFormula):
-    def __init__(self, variable):
+class PrimitiveEvent(Event):
+    def __init__(self, variable, value):
         self.variable = variable
+        self.value = value
 
     def entailed_by(self, causal_setting):
-        if self.variable in causal_setting.causal_model.exogenous_variables:
-            return causal_setting.context[self.variable]
-        else:
-            return causal_setting.causal_model.structural_equations[self.variable].entailed_by(causal_setting)
+        return causal_setting.values[self.variable] == self.value
 
     def variables(self):
         return {self.variable}
 
     def __str__(self):
-        return f"{self.variable}"
+        return f"{self.variable}={self.value}"
 
 
-class Negation(BooleanFormula):
+class Negation(Event):
     def __init__(self, child):
         self.child = child
 
@@ -65,10 +63,10 @@ class Negation(BooleanFormula):
         return self.child.variables()
 
     def __str__(self):
-        return f"!{self.child}"
+        return f"!({self.child})"
 
 
-class BinaryFormula(BooleanFormula, metaclass=ABCMeta):
+class BinaryFormula(Event, metaclass=ABCMeta):
     def __init__(self, left_child, right_child):
         self.left_child = left_child
         self.right_child = right_child
@@ -97,8 +95,7 @@ def assignments2conjunction(assignments, right_child=None):
     if not assignments:
         return Verum()
     assignments_remainder = copy(assignments)
-    variable, polarity = assignments_remainder.popitem()  # pops items in reverse order, which is important for respecting order of operations
-    atom = Atom(variable)
-    literal = atom if polarity else Negation(atom)
-    formula = Conjunction(literal, right_child) if right_child else literal
+    variable, value = assignments_remainder.popitem()  # pops items in reverse order, which is important for respecting order of operations
+    primitive_event = PrimitiveEvent(variable, value)
+    formula = Conjunction(primitive_event, right_child) if right_child else primitive_event
     return assignments2conjunction(assignments_remainder, formula) if assignments_remainder else formula

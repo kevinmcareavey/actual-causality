@@ -1,9 +1,11 @@
+import itertools
 from copy import copy
 
-from pygraphviz import AGraph
+from networkx import DiGraph, topological_sort
+from networkx.drawing.nx_agraph import to_agraph
 
-from actualcausality.boolean_combinations import assignments2conjunction, Negation, Verum, Falsum
-from actualcausality.utils import format_dict, powerdict, powerset
+from actualcausality.boolean_combinations import assignments2conjunction, Negation
+from actualcausality.utils import powerset, format_dict, powerdict
 
 
 class Variable:
@@ -22,72 +24,79 @@ class Variable:
     def __repr__(self):
         return self.__str__()
 
+    def __lt__(self, other):
+        return self.symbol < other.symbol
 
-class CausalModel:
-    def __init__(self, exogenous_variables, structural_equations):
-        self.exogenous_variables = exogenous_variables  # set of exogenous variables
-        self.structural_equations = structural_equations  # dict mapping endogenous variables to Boolean formulas over (exogenous and/or endogenous) variables
 
-    def endogenous_variables(self):
-        return set(self.structural_equations.keys())
+class CausalNetwork:
+    def __init__(self):
+        self.graph = DiGraph()
+
+        self.structural_equations = dict()
+        self.endogenous_bindings = dict()
+
+    def add_dependency(self, endogenous_variable, parents, structural_equation):
+        for parent_variable in parents:
+            self.graph.add_edge(parent_variable, endogenous_variable)
+        self.structural_equations[endogenous_variable] = structural_equation
+
+    def evaluate(self, context):
+        values = copy(context)
+        for variable in topological_sort(self.graph):
+            if variable not in values:
+                values[variable] = self.structural_equation(variable, values)
+        return {key: value for key, value in values.items() if key not in context}
 
     def signature(self):
-        return self.exogenous_variables, self.endogenous_variables()
+        in_degrees = self.graph.in_degree()
+        return {v for v, d in in_degrees if d == 0}, {v for v, d in in_degrees if d != 0}
+
+    def structural_equation(self, variable, parent_values):
+        return self.endogenous_bindings[variable] if variable in self.endogenous_bindings else self.structural_equations[variable](parent_values)
 
     def intervene(self, intervention):
-        new_structural_equations = copy(self.structural_equations)
-        for variable, polarity in intervention.items():
-            new_structural_equations[variable] = Verum() if polarity else Falsum()
-        return CausalModel(self.exogenous_variables, new_structural_equations)
+        new_causal_network = CausalNetwork()
+        _, endogenous_variables = self.signature()
+        for variable in endogenous_variables:
+            new_causal_network.add_dependency(variable, self.graph.predecessors(variable), self.structural_equations[variable])
+        for variable, value in intervention.items():
+            new_causal_network.endogenous_bindings[variable] = value
+        return new_causal_network
 
-    def causal_network(self):
-        network = AGraph(directed=True)
-        for exogenous_variable in self.exogenous_variables:
-            network.add_node(str(exogenous_variable))
-        for endogenous_variable, equation in self.structural_equations.items():
-            network.add_node(str(endogenous_variable), xlabel=f"{endogenous_variable} = {equation}")
-        for endogenous_variable, equation in self.structural_equations.items():
-            for variable in equation.variables():
-                network.add_edge(str(variable), str(endogenous_variable))
-        return network
-
-    def __str__(self):
-        return f"({self.exogenous_variables}, {format_dict(self.structural_equations)})"
+    def write(self, path, prog="dot"):  # prog=neato|dot|twopi|circo|fdp|nop
+        to_agraph(self.graph).draw(path, prog=prog)
 
 
 class CausalSetting:
-    def __init__(self, causal_model, context):
-        self.causal_model = causal_model
-        self.context = context  # dict mapping exogenous variables to polarities
+    def __init__(self, causal_network, context, endogenous_domains):
+        self.causal_network = causal_network
+        self.context = context  # dict mapping exogenous variables to values
+        self.endogenous_domains = endogenous_domains
 
-        assert self.causal_model.exogenous_variables == self.context.keys()
+        exogenous_variables, endogenous_variables = self.causal_network.signature()
+        assert exogenous_variables == set(self.context.keys())
+        assert endogenous_variables == set(self.endogenous_domains.keys())
 
-    def polarities(self):
-        endogenous_polarities = {endogenous_variable: self.causal_model.structural_equations[endogenous_variable].entailed_by(self) for endogenous_variable in self.causal_model.endogenous_variables()}
-        return {**self.context, **endogenous_polarities}
+        self.derived_values = self.causal_network.evaluate(self.context)
+        self.values = {**self.context, **self.derived_values}
 
     def find_candidate_causes(self):
-        for candidate_variables in powerset(self.causal_model.endogenous_variables()):
+        _, endogenous_variables = self.causal_network.signature()
+        for candidate_variables in powerset(endogenous_variables):
             if candidate_variables:
-                initial_candidate = {variable: True for variable in candidate_variables}
-                for negated_candidate_variables in powerset(candidate_variables):
-                    yield {variable: not polarity if variable in negated_candidate_variables else polarity for variable, polarity in initial_candidate.items()}
-
-    def value(self, variable):
-        return self.context[variable] if variable in self.context else self.causal_model.structural_equations[variable](self)
-
-    def __str__(self):
-        return f"({format_dict(self.context)}, {format_dict(self.causal_model.structural_equations)})"
+                candidate_domains = [self.endogenous_domains[candidate_variable] for candidate_variable in candidate_variables]
+                for candidate_values in itertools.product(*candidate_domains):
+                    yield {candidate_variable: candidate_value for candidate_variable, candidate_value in zip(candidate_variables, candidate_values)}
 
 
 class CausalFormula:
     def __init__(self, intervention, event):
-        self.intervention = intervention  # dict mapping endogenous variables to polarities
-        self.event = event  # Boolean formula over endogenous variables
+        self.intervention = intervention  # dict mapping endogenous variables to values
+        self.event = event  # Boolean combination of primitive events
 
     def entailed_by(self, causal_setting):
-        new_causal_model = causal_setting.causal_model.intervene(self.intervention)
-        new_causal_setting = CausalSetting(new_causal_model, causal_setting.context)
+        new_causal_network = causal_setting.causal_network.intervene(self.intervention)
+        new_causal_setting = CausalSetting(new_causal_network, causal_setting.context, causal_setting.endogenous_domains)
         return self.event.entailed_by(new_causal_setting)
 
     def __str__(self):
@@ -103,20 +112,19 @@ def satisfies_ac1(candidate, event, causal_setting):
 
 
 def find_witnesses_ac2(candidate, event, causal_setting):
-    actual_polarities = causal_setting.polarities()
+    x = {candidate_variable: causal_setting.values[candidate_variable] for candidate_variable in candidate}
+    all_w = {other_variable: causal_setting.values[other_variable] for other_variable in causal_setting.endogenous_domains.keys() - candidate.keys()}
 
-    x_polarities = {candidate_variable: actual_polarities[candidate_variable] for candidate_variable in candidate}
-    w_polarities = {other_variable: actual_polarities[other_variable] for other_variable in causal_setting.causal_model.endogenous_variables() - candidate.keys()}
-    assert not (x_polarities.keys() & w_polarities.keys())  # x_polarities and w_polarities should not intersect
+    x_variables = sorted(x.keys())
+    x_domains = [causal_setting.endogenous_domains[variable] for variable in x_variables]
 
-    for subset_x_polarities in powerdict(x_polarities):
-        if subset_x_polarities:  # at least one X variable must be negated
-            x_prime_polarities = {candidate_variable: not candidate_polarity if candidate_variable in subset_x_polarities else candidate_polarity for candidate_variable, candidate_polarity in candidate.items()}
-            for subset_w_polarities in powerdict(w_polarities):
-                witness = {**x_prime_polarities, **subset_w_polarities}
-                casual_formula = CausalFormula(witness, Negation(event))
-                if casual_formula.entailed_by(causal_setting):
-                    yield witness
+    for x_prime_tuple in itertools.product(*x_domains):
+        x_prime = {variable: value for variable, value in zip(x_variables, x_prime_tuple)}
+        for w in powerdict(all_w):
+            witness = {**x_prime, **w}
+            casual_formula = CausalFormula(witness, Negation(event))
+            if casual_formula.entailed_by(causal_setting):
+                yield witness
 
 
 def satisfies_ac2(candidate, event, causal_setting):
@@ -149,17 +157,16 @@ def find_actual_causes(event, causal_setting):
             yield candidate
 
 
-def degree_of_responsibility(endogenous_variable, polarity, event, causal_setting):
+def degree_of_responsibility(endogenous_variable, value, event, causal_setting):
     k_values = set()
     for actual_cause in find_actual_causes(event, causal_setting):
-        if endogenous_variable in actual_cause and actual_cause[endogenous_variable] == polarity:  # if endogenous_variable=polarity is "part of" this cause
+        if endogenous_variable in actual_cause and actual_cause[endogenous_variable] == value:  # if endogenous_variable=value is "part of" this cause
             k_values.add(min(len(witness) for witness in find_witnesses_ac2(actual_cause, event, causal_setting)))
     return 1 / min(k_values) if k_values else 0
 
 
 def degrees_of_responsibility(event, causal_setting):
-    polarities = [True, False]
-    return {endogenous_variable: {polarity: degree_of_responsibility(endogenous_variable, polarity, event, causal_setting) for polarity in polarities} for endogenous_variable in causal_setting.causal_model.endogenous_variables()}
+    return {endogenous_variable: {value: degree_of_responsibility(endogenous_variable, value, event, causal_setting) for value in domain} for endogenous_variable, domain in causal_setting.endogenous_domains.items()}
 
 
 class EpistemicState:
