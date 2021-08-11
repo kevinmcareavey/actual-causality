@@ -36,7 +36,7 @@ causal_network.add_dependency(V, [O, A], lambda parent_values: "pass" if parent_
 context = {U_L: 7, U_S: False, U_E: 8, U_C: False, U_W: 0, U_A: "unknown"}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(V, "pass")
-list(find_actual_causes(event, causal_setting))
+# list(find_actual_causes(event, causal_setting))
 
 causal_network.write("arthropods_extended.png")
 

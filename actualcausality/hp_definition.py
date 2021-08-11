@@ -79,6 +79,7 @@ class CausalSetting:
 
         self.derived_values = self.causal_network.evaluate(self.context)
         self.values = {**self.context, **self.derived_values}
+        assert all(self.values[endogenous_variable] in domain for endogenous_variable, domain in self.endogenous_domains.items())
 
     def find_candidate_causes(self):
         _, endogenous_variables = self.causal_network.signature()
