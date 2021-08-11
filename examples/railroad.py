@@ -18,8 +18,8 @@ causal_network.add_dependency(A, [F, LB, RB], lambda parent_values: (parent_valu
 context = {U_F: True, U_LB: False, U_RB: False}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(A, True)
-list(find_actual_causes(event, causal_setting))
-degrees_of_responsibility(event, causal_setting)
+# list(find_actual_causes(event, causal_setting))
+# degrees_of_responsibility(event, causal_setting)
 
 causal_network.write("railroad.png")
 

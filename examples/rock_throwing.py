@@ -20,8 +20,8 @@ causal_network.add_dependency(BS, [SH, BH], lambda parent_values: parent_values[
 context = {U_ST: True, U_BT: True}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(BS, True)
-list(find_actual_causes(event, causal_setting))
-degrees_of_responsibility(event, causal_setting)
+# list(find_actual_causes(event, causal_setting))
+# degrees_of_responsibility(event, causal_setting)
 
 causal_network.write("rock_throwing.png")
 

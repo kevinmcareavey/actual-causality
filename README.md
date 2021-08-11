@@ -13,7 +13,6 @@ The values of these variables are defined in two different causal models, known 
 In the conjunctive model the structural equations are defined as `FF = (L & MD)`, `L = U_L`, and `MD = U_MD`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
 >>> U_L, U_MD = Variable("U_L"), Variable("U_MD")
@@ -43,7 +42,6 @@ In the conjunctive model the structural equations are defined as `FF = (L & MD)`
 In the disjunctive model the structural equations are defined as `FF = (L | MD)`, `L = U_L`, and `MD = U_MD`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent, Negation
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility, CausalFormula
 >>> U_L, U_MD = Variable("U_L"), Variable("U_MD")
@@ -74,7 +72,6 @@ This example involves five endogenous variables: Suzy throws a rock `ST`, Billy 
 The values of these variables are defined in a causal model based on two exogenous variables `U_ST` and `U_BT` where the structural equations are defined as `ST = U_ST`, `BT = U_BT`, `SH = ST`, `BH = (BT & !SH)`, and `BS = (SH | BH)`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
 >>> U_ST, U_BT = Variable("U_ST"), Variable("U_BT")
@@ -109,7 +106,6 @@ This example involves four endogenous variables: person 1 votes for Suzy `V1`, p
 The values of these variables are defined in a causal model based on three exogenous variables `U_V1`, `U_V2`, and `U_V3` where the structural equations are defined as `V1 = U_V1`, `V2 = U_V2`, `V3 = U_V3`, and `W = ((V1 & V2) | (V1 & V3) | (V2 & V3))`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
 >>> U_V1, U_V2, U_V3 = Variable("U_V1"), Variable("U_V2"), Variable("U_V3")
@@ -142,7 +138,6 @@ This example involves seven endogenous variables: Billy goes up `BGU`, enemy sho
 The values of these variables are defined in a causal model based on two exogenous variables `U_BGU` and `U_ESU` where the structural equations are defined as `BGU = U_BGU`, `ESU = U_ESU`, `BPT = (BGU & ESU)`, `EE = (ESU & !BPT)`, `ESS = EE`, `SBT = !ESS`, and `TD = SBT`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
 >>> U_BGU, U_ESU = Variable("U_BGU"), Variable("U_ESU")
@@ -181,7 +176,6 @@ This example involves four endogenous variables: engineer flips the switch `F`, 
 The values of these variables are defined in a causal model based on three exogenous variables `U_F`, `U_LB`, and `U_RB` where the structural equations are defined as `F = U_F`, `LB = U_LB`, `RB = U_RB`, and `A = ((F & !LB) | (!F & !RB))`.
 
 ```python
->>> from frozendict import frozendict
 >>> from actualcausality.boolean_combinations import PrimitiveEvent
 >>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
 >>> U_F, U_LB, U_RB = Variable("U_F"), Variable("U_LB"), Variable("U_RB")
@@ -209,9 +203,64 @@ The values of these variables are defined in a causal model based on three exoge
 
 ![](examples/railroad.png)
 
+### Arthropods
+This example involves six endogenous variables: number of legs `L`, has stinger `S`, number of eyes `E`, has compound eyes `C`, has wings `W`, and classification output `O`.
+The values of these variables are defined in a causal model based on five exogenous variables `U_L`, `U_S`, `U_E`, `U_C`, and `U_W` where the structural equations are defined as `L = U_L`, `S = U_S`, `E = U_E`, `C = U_C`, `W = U_W`, and:
+
+| `O`       | `L` | `S`     | `E` | `C`     | `W` |
+| --------- | --- | ------- | --- | ------- | --- |
+| `spider`  | `8` | `False` | `8` | `False` | `0` |
+| `beetle`  | `6` | `False` | `2` | `True`  | `2` |
+| `bee`     | `6` | `True`  | `5` | `True`  | `4` |
+| `fly`     | `6` | `False` | `5` | `True`  | `2` |
+| `unknown` | ... | ...     | ... | ...     | ... |
+
+```python
+>>> from actualcausality.boolean_combinations import PrimitiveEvent
+>>> from actualcausality.hp_definition import Variable, CausalNetwork, CausalSetting, find_actual_causes, degrees_of_responsibility
+>>> from actualcausality.utils import issubdict
+>>> U_L, U_S, U_E, U_C, U_W = Variable("U_L"), Variable("U_S"), Variable("U_E"), Variable("U_C"), Variable("U_W")
+>>> L, S, E, C, W, O = Variable("L"), Variable("S"), Variable("E"), Variable("C"), Variable("W"), Variable("O")
+>>> exogenous_variables = {U_L, U_S, U_E, U_C, U_W}
+>>> endogenous_domains = {
+...     L: {6, 8},
+...     S: {False, True},
+...     E: {2, 5, 8},
+...     C: {False, True},
+...     W: {0, 2, 4},
+...     O: {"spider", "beetle", "bee", "fly", "unknown"}
+... }
+>>> causal_network = CausalNetwork()
+>>> causal_network.add_dependency(L, [U_L], lambda parent_values: parent_values[U_L])
+>>> causal_network.add_dependency(S, [U_S], lambda parent_values: parent_values[U_S])
+>>> causal_network.add_dependency(E, [U_E], lambda parent_values: parent_values[U_E])
+>>> causal_network.add_dependency(C, [U_C], lambda parent_values: parent_values[U_C])
+>>> causal_network.add_dependency(W, [U_W], lambda parent_values: parent_values[U_W])
+>>> causal_network.add_dependency(
+...     O,
+...     [L, S, E, C, W],
+...     lambda parent_values:
+...         "spider" if issubdict({L: 8, S: False, E: 8, C: False, W: 0}, parent_values)
+...         else "beetle" if issubdict({L: 6, S: False, E: 2, C: True, W: 2}, parent_values)
+...         else "bee" if issubdict({L: 6, S: True, E: 5, C: True, W: 4}, parent_values)
+...         else "fly" if issubdict({L: 6, S: False, E: 5, C: True, W: 2}, parent_values)
+...         else "unknown"
+... )
+>>> context = {U_L: 6, U_S: True, U_E: 5, U_C: True, U_W: 4}
+>>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
+>>> event = PrimitiveEvent(O, "bee")
+>>> list(find_actual_causes(event, causal_setting))
+[{S: True}, {O: 'bee'}, {L: 6}, {W: 4}, {E: 5}, {C: True}]
+>>> degrees_of_responsibility(event, causal_setting)
+{L: {8: 0, 6: 1.0}, S: {False: 0, True: 1.0}, E: {8: 0, 2: 0, 5: 1.0}, C: {False: 0, True: 1.0}, W: {0: 0, 2: 0, 4: 1.0}, O: {'fly': 0, 'spider': 0, 'unknown': 0, 'beetle': 0, 'bee': 1.0}}
+```
+
+![](examples/arthropods.png)
+
 # Related Software
 - [hp2sat](https://github.com/amjadKhalifah/HP2SAT1.0): Java library for actual causality computation
 
 # References
+- Tim Miller. [Contrastive Explanation: A Structural-Model Approach](https://arxiv.org/abs/1811.03163). *arXiv:1811.03163*, 2018.
 - Joseph Y. Halpern. [Actual causality](https://mitpress.mit.edu/books/actual-causality). MIT Press, 2016.
 - Joseph Y. Halpern. [A Modification of the Halpern-Pearl Definition of Causality](https://www.ijcai.org/Proceedings/15/Papers/427.pdf). In *Proceedings of the 24th International Joint Conference on Artificial Intelligence (IJCAI'15)*, pages 3022-3033, 2015.

@@ -116,7 +116,7 @@ def find_witnesses_ac2(candidate, event, causal_setting):
     all_w = {other_variable: causal_setting.values[other_variable] for other_variable in causal_setting.endogenous_domains.keys() - candidate.keys()}
 
     x_variables = sorted(x.keys())
-    x_domains = [causal_setting.endogenous_domains[variable] for variable in x_variables]
+    x_domains = [causal_setting.endogenous_domains[variable] - {x[variable]} for variable in x_variables]  # only consider "remaining" values in domain
 
     for x_prime_tuple in itertools.product(*x_domains):
         x_prime = {variable: value for variable, value in zip(x_variables, x_prime_tuple)}

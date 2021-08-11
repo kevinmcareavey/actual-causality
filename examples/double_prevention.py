@@ -24,8 +24,8 @@ causal_network.add_dependency(TD, [SBT], lambda parent_values: parent_values[SBT
 context = {U_BGU: True, U_ESU: False}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(TD, True)
-list(find_actual_causes(event, causal_setting))
-degrees_of_responsibility(event, causal_setting)
+# list(find_actual_causes(event, causal_setting))
+# degrees_of_responsibility(event, causal_setting)
 
 causal_network.write("double_prevention.png")
 

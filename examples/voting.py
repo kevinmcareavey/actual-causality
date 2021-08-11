@@ -18,8 +18,8 @@ causal_network.add_dependency(W, [V1, V2, V3], lambda parent_values: ((parent_va
 context = {U_V1: True, U_V2: True, U_V3: True}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(W, True)
-list(find_actual_causes(event, causal_setting))
-degrees_of_responsibility(event, causal_setting)
+# list(find_actual_causes(event, causal_setting))
+# degrees_of_responsibility(event, causal_setting)
 
 causal_network.write("voting.png")
 

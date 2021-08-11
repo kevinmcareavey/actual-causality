@@ -16,8 +16,8 @@ causal_network.add_dependency(MD, [U_MD], lambda parent_values: parent_values[U_
 context = {U_L: True, U_MD: True}
 causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 event = PrimitiveEvent(FF, True)
-list(find_actual_causes(event, causal_setting))
-degrees_of_responsibility(event, causal_setting)
+# list(find_actual_causes(event, causal_setting))
+# degrees_of_responsibility(event, causal_setting)
 
 causal_network.write("forest_fire_disjunctive.png")
 
