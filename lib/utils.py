@@ -21,5 +21,12 @@ def powerset(data):  # https://stackoverflow.com/a/1482320
         yield {element for mask, element in zip(masks, data) if i & mask}
 
 
+def powerlist(data):  # https://stackoverflow.com/a/1482320
+    n = len(data)
+    masks = [1 << i for i in range(n)]
+    for i in range(1 << n):
+        yield [element for mask, element in zip(masks, data) if i & mask]
+
+
 def issubdict(a, b):
     return all(key in b for key in a.keys()) and all(b[key] == value for key, value in a.items())
