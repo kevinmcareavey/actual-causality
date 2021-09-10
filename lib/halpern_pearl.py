@@ -1,4 +1,5 @@
 import itertools
+import logging
 from abc import ABC, abstractmethod, ABCMeta
 from copy import copy
 
@@ -6,6 +7,10 @@ from networkx import DiGraph, topological_sort
 from networkx.drawing.nx_agraph import to_agraph
 
 from lib.utils import powerset, format_dict, powerdict
+
+
+logger = logging.getLogger("halpern_pearl")
+logging.basicConfig(level=logging.INFO)
 
 
 class Variable:
@@ -144,15 +149,18 @@ class CausalNetwork:
 
 
 class CausalSetting:
-    def __init__(self, causal_network, context, endogenous_domains):
+    def __init__(self, causal_network, context, exogenous_domains, endogenous_domains):
         self.causal_network = causal_network
         self.context = context  # dict mapping exogenous variables to values
+        self.exogenous_domains = exogenous_domains
         self.endogenous_domains = endogenous_domains
 
         exogenous_variables, endogenous_variables = self.causal_network.signature()
         assert exogenous_variables == set(self.context.keys())
+        assert exogenous_variables == set(self.exogenous_domains.keys())
         assert endogenous_variables == set(self.endogenous_domains.keys())
 
+        assert all(self.context[exogenous_variable] in domain for exogenous_variable, domain in self.exogenous_domains.items())
         self.derived_values = self.causal_network.evaluate(self.context)
         self.values = {**self.context, **self.derived_values}
         assert all(self.values[endogenous_variable] in domain for endogenous_variable, domain in self.endogenous_domains.items())
@@ -165,7 +173,7 @@ class CausalFormula:
 
     def entailed_by(self, causal_setting):
         new_causal_network = causal_setting.causal_network.intervene(self.intervention)
-        new_causal_setting = CausalSetting(new_causal_network, causal_setting.context, causal_setting.endogenous_domains)
+        new_causal_setting = CausalSetting(new_causal_network, causal_setting.context, causal_setting.exogenous_domains, causal_setting.endogenous_domains)
         return self.event.entailed_by(new_causal_setting)
 
     def __str__(self):
@@ -216,11 +224,17 @@ def satisfies_ac3(candidate, event, causal_setting):
 
 def is_actual_cause(candidate, event, causal_setting):
     if not satisfies_ac1(candidate, event, causal_setting):
+        logger.debug("AC1 failed")
         return False
+    logger.debug("AC1 passed")
     if not satisfies_ac2(candidate, event, causal_setting):
+        logger.debug("AC2 passed")
         return False
+    logger.debug("AC2 passed")
     if not satisfies_ac3(candidate, event, causal_setting):
+        logger.debug("AC2 passed")
         return False
+    logger.debug("AC3 passed")
     return True
 
 
@@ -240,74 +254,67 @@ def satisfies_sc2(candidate, event, causal_setting):
     return False
 
 
-def satisfies_sc3(candidate, event, causal_setting, exogenous_domains):
-    for context_prime in find_exact_conjunctive_events(exogenous_domains, exogenous_domains.keys()):
-        if not CausalFormula(candidate, event).entailed_by(CausalSetting(causal_setting.causal_network, context_prime, causal_setting.endogenous_domains)):
+def satisfies_sc3(candidate, event, causal_setting):
+    for context_prime in find_exact_assignments(causal_setting.exogenous_domains, causal_setting.exogenous_domains.keys()):
+        if not CausalFormula(candidate, event).entailed_by(CausalSetting(causal_setting.causal_network, context_prime, causal_setting.exogenous_domains, causal_setting.endogenous_domains)):
             return False
     return True
 
 
-def satisfies_sc4(candidate, event, causal_setting, exogenous_domains):
+def satisfies_sc4(candidate, event, causal_setting):
     for subset_candidate in powerdict(candidate):
         if subset_candidate and subset_candidate != candidate:
-            if satisfies_sc1(subset_candidate, event, causal_setting) and satisfies_sc2(subset_candidate, event, causal_setting) and satisfies_sc3(subset_candidate, event, causal_setting, exogenous_domains):
+            if satisfies_sc1(subset_candidate, event, causal_setting) and satisfies_sc2(subset_candidate, event, causal_setting) and satisfies_sc3(subset_candidate, event, causal_setting):
                 return False
     return True
 
 
-def is_sufficient_cause(candidate, event, causal_setting, exogenous_domains):  # as in Halpern (2016) rather than Halpern & Pearl (2005)
+def is_sufficient_cause(candidate, event, causal_setting):  # as in Halpern (2016) rather than Halpern & Pearl (2005)
     if not satisfies_sc1(candidate, event, causal_setting):
         return False
     if not satisfies_sc2(candidate, event, causal_setting):
         return False
-    if not satisfies_sc3(candidate, event, causal_setting, exogenous_domains):
+    if not satisfies_sc3(candidate, event, causal_setting):
         return False
     return True
 
 
-def find_all_contexts(exogenous_domains):
-    assert exogenous_domains
-    variables_tuple = sorted(exogenous_domains.keys())
-    domains_tuple = [exogenous_domains[variable] for variable in variables_tuple]
-    for values_tuple in itertools.product(*domains_tuple):
-        yield {variable: value for variable, value in zip(variables_tuple, values_tuple)}
-
-
-def find_exact_conjunctive_events(endogenous_domains, variables):
+def find_exact_assignments(domains, variables):
     assert variables
     variables_tuple = sorted(variables)
-    domains_tuple = [endogenous_domains[variable] for variable in variables_tuple]
+    domains_tuple = [domains[variable] for variable in variables_tuple]
     for values_tuple in itertools.product(*domains_tuple):
         yield {variable: value for variable, value in zip(variables_tuple, values_tuple)}
 
 
-def find_all_conjunctive_events(endogenous_domains):
-    for variables in powerset(endogenous_domains.keys()):
+def find_all_assignments(domains):
+    for variables in powerset(domains.keys()):
         if variables:
-            yield from find_exact_conjunctive_events(endogenous_domains, variables)
+            yield from find_exact_assignments(domains, variables)
 
 
 def find_actual_causes(event, causal_setting):
-    for candidate in find_all_conjunctive_events(causal_setting.endogenous_domains):
+    for candidate in find_all_assignments(causal_setting.endogenous_domains):
         if is_actual_cause(candidate, event, causal_setting):
             yield candidate
 
 
-def find_sufficient_causes(event, causal_setting, exogenous_domains):
-    for candidate in find_all_conjunctive_events(causal_setting.endogenous_domains):
-        if is_sufficient_cause(candidate, event, causal_setting, exogenous_domains):
+def find_sufficient_causes(event, causal_setting):
+    for candidate in find_all_assignments(causal_setting.endogenous_domains):
+        if is_sufficient_cause(candidate, event, causal_setting):
             yield candidate
 
 
 class EpistemicState:
-    def __init__(self, causal_network, contexts, endogenous_domains):
+    def __init__(self, causal_network, contexts, exogenous_domains, endogenous_domains):
         self.causal_network = causal_network
         self.contexts = contexts
+        self.exogenous_domains = exogenous_domains
         self.endogenous_domains = endogenous_domains
 
     def causal_settings(self):
         for context in self.contexts:
-            yield CausalSetting(self.causal_network, context, self.endogenous_domains)
+            yield CausalSetting(self.causal_network, context, self.exogenous_domains, self.endogenous_domains)
 
 
 def satisfies_ex1(candidate, event, epistemic_state):
@@ -370,18 +377,18 @@ def is_trivial_explanation(candidate, event, epistemic_state):
 
 
 def find_explanations(event, epistemic_state):
-    for candidate in find_all_conjunctive_events(epistemic_state.endogenous_domains):
+    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
         if is_explanation(candidate, event, epistemic_state):
             yield candidate
 
 
 def find_nontrivial_explanations(event, epistemic_state):
-    for candidate in find_all_conjunctive_events(epistemic_state.endogenous_domains):
+    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
         if is_nontrivial_explanation(candidate, event, epistemic_state):
             yield candidate
 
 
 def find_trivial_explanations(event, epistemic_state):
-    for candidate in find_all_conjunctive_events(epistemic_state.endogenous_domains):
+    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
         if is_trivial_explanation(candidate, event, epistemic_state):
             yield candidate

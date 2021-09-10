@@ -1,7 +1,7 @@
 # PyActualCausality
 A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality, of the Chockler-Halpern definitions of blame and responsibility, and of the Miller definition of contrastive explanations.
 
-*Note that causal models are restricted to those with finite-domain endogenous variables while structural equations should be represented as Python functions that accept as input a dictionary mapping parent variables to values.*
+*Note that causal models are restricted to those with discrete variables, while structural equations should be represented as Python functions that accept as input a dictionary mapping parent variables to values.*
 
 ## Usage
 
