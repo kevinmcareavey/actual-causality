@@ -19,8 +19,8 @@ causal_network.add_dependency(
         "Suzy" if len([v for v in V if parent_values[v] == "Suzy"]) > (num_voters / 2) else "Billy" if len([v for v in V if parent_values[v] == "Billy"]) > (num_voters / 2) else "tie"
 )
 context = {
-    **{u: "Suzy" for u in U[:num_voters//2]},
-    **{u: "Billy" for u in U[num_voters//2:]}
+    **{u: "Billy" for u in U[num_voters//2:]},
+    **{u: "Suzy" for u in U[:num_voters//2 + (0 if num_voters % 2 == 0 else 1)]}  # even split unless num_voters is odd, in which case Suzy gets the additional vote
 }
 causal_setting = CausalSetting(causal_network, context, exogenous_domains, endogenous_domains)
 event = PrimitiveEvent(W, causal_setting.values[W])
@@ -28,6 +28,11 @@ event = PrimitiveEvent(W, causal_setting.values[W])
 
 causal_network.write("voting.png")
 
-actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
-expected_causes = [{v: "Suzy"} for v in V[:num_voters//2]] + [{v: "Billy"} for v in V[num_voters//2:]] + [{W: 'tie'}]
-assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+if num_voters % 2 == 0:
+    actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
+    expected_actual_causes = [{v: "Suzy"} for v in V[:num_voters//2]] + [{v: "Billy"} for v in V[num_voters//2:]] + [{W: "tie"}]
+    assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}
+else:
+    actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
+    expected_actual_causes = [{v: "Suzy"} for v in V[:num_voters//2 + 1]] + [{W: "Suzy"}]
+    assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}
