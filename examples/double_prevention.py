@@ -31,5 +31,5 @@ event = PrimitiveEvent(TD, True)
 causal_network.write("double_prevention.png")
 
 actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
-expected_causes = [{ESU: False}, {EE: False}, {ESS: False}, {SBT: True}, {TD: True}]
-assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+expected_actual_causes = [{ESU: False}, {EE: False}, {ESS: False}, {SBT: True}, {TD: True}]
+assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}

@@ -26,5 +26,5 @@ event = PrimitiveEvent(A, True)
 causal_network.write("railroad.png")
 
 actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
-expected_causes = [{LB: False}, {F: True, RB: False}, {A: True}]
-assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+expected_actual_causes = [{LB: False}, {F: True, RB: False}, {A: True}]
+assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}

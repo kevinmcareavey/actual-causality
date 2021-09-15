@@ -27,6 +27,6 @@ event = PrimitiveEvent(BS, True)
 causal_network.write("rock_throwing.png")
 
 actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
-expected_causes = [{ST: True}, {BS: True}, {SH: True}]
-assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+expected_actual_causes = [{ST: True}, {BS: True}, {SH: True}]
+assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}
 

@@ -1,6 +1,6 @@
 from frozendict import frozendict
 from lib.halpern_pearl import Variable, CausalNetwork, CausalSetting, find_actual_causes, PrimitiveEvent, \
-    find_trivial_explanations, find_nontrivial_explanations, EpistemicState
+    find_trivial_explanations, find_nontrivial_explanations, EpistemicState, find_explanations, find_sufficient_causes
 
 U_L, U_MD = Variable("U_L"), Variable("U_MD")
 FF, L, MD = Variable("FF"), Variable("L"), Variable("MD")
@@ -25,8 +25,12 @@ event = PrimitiveEvent(FF, True)
 causal_network.write("forest_fire_conjunctive.png")
 
 actual_causes = {frozendict(actual_cause) for actual_cause in find_actual_causes(event, causal_setting)}
-expected_causes = [{FF: True}, {L: True}, {MD: True}]
-assert actual_causes == {frozendict(expected_cause) for expected_cause in expected_causes}
+expected_actual_causes = [{FF: True}, {L: True}, {MD: True}]
+assert actual_causes == {frozendict(expected_actual_cause) for expected_actual_cause in expected_actual_causes}
+
+sufficient_causes = {frozendict(sufficient_cause) for sufficient_cause in find_sufficient_causes(event, causal_setting)}
+expected_sufficient_causes = [{FF: True}, {FF: True, L: True}, {FF: True, MD: True}, {L: True, MD: True}, {FF: True, L: True, MD: True}]
+assert sufficient_causes == {frozendict(expected_sufficient_cause) for expected_sufficient_cause in expected_sufficient_causes}
 
 u0 = {U_L: False, U_MD: False}
 u1 = {U_L: True, U_MD: False}
@@ -37,6 +41,15 @@ k2 = EpistemicState(causal_network, [u0, u1, u2], exogenous_domains, endogenous_
 k3 = EpistemicState(causal_network, [u0, u1, u3], exogenous_domains, endogenous_domains)
 k4 = EpistemicState(causal_network, [u1, u3], exogenous_domains, endogenous_domains)
 epistemic_states = [k1, k2, k3, k4]
+
+explanations = [{frozendict(explanation) for explanation in find_explanations(event, epistemic_state)} for epistemic_state in epistemic_states]
+expected_explanations = [
+    [{FF: True}, {L: True, MD: True}],
+    [],
+    [{FF: True}, {L: True, MD: True}],
+    [{FF: True}, {MD: True}]
+]
+assert explanations == [{frozendict(expected_explanation) for expected_explanation in epistemic_state} for epistemic_state in expected_explanations]
 
 trivial_explanations = [{frozendict(trivial_explanation) for trivial_explanation in find_trivial_explanations(event, epistemic_state)} for epistemic_state in epistemic_states]
 expected_trivial_explanations = [
