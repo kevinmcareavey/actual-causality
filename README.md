@@ -1,7 +1,7 @@
 # PyActualCausality
-A simple Python implementation of the (modified) Halpern-Pearl definition of actual causality, of the Chockler-Halpern definitions of blame and responsibility, and of the Miller definition of contrastive explanations.
+A simple Python implementation of causes and explanations based on the Halpern-Pearl structural-model framework, including the Halpern-Pearl definitions of actual causes and explanations, the Chockler-Halpern definitions of blame and responsibility, and the Miller definitions of contrastive causes and explanations.
 
-*Note that causal models are restricted to those with discrete variables, while structural equations should be represented as Python functions that accept as input a dictionary mapping parent variables to values.*
+*Note that causal models are restricted to those with discrete variables and are represented as causal networks, while structural equations should be represented as Python functions that accept as input a dictionary mapping parent variables to values.*
 
 ## Usage
 
@@ -19,7 +19,7 @@ A simple Python implementation of the (modified) Halpern-Pearl definition of act
 >>> causal_setting = CausalSetting(causal_network, context, endogenous_domains)
 >>> event = PrimitiveEvent(FF, True)
 >>> list(find_actual_causes(event, causal_setting))
-[{FF: True}, {L: True}, {MD: True}]
+[{FF: True}, {L: True, MD: True}]
 ```
 
 ![](examples/forest_fire_disjunctive.png)
