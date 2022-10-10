@@ -1,7 +1,7 @@
 # Causal Explainer
 A simple Python implementation of causes and explanations based on structural causal models, including the Halpern-Pearl definitions of actual causes and explanations, the Chockler-Halpern definitions of blame and responsibility, and the Miller definitions of contrastive causes and explanations.
 
-*Note that causal models are restricted to those with discrete variables and are represented as causal networks, while structural equations should be represented as Python functions that accept as input a dictionary mapping parent variables to values.*
+*Note that causal models are restricted strongly recursive (strongly acyclic) causal networks over discrete variables, while structural equations are represented as Python functions that accept as input a dictionary mapping parent variables to values.*
 
 ## Usage
 
