@@ -1,3 +1,6 @@
+from frozendict import frozendict
+
+
 def format_dict(data, sep_item=", ", sep_key_value="=", brackets=True):
     output = ""
     delim = ""
@@ -30,3 +33,7 @@ def powerlist(data):  # https://stackoverflow.com/a/1482320
 
 def issubdict(a, b):
     return all(key in b for key in a.keys()) and all(b[key] == value for key, value in a.items())
+
+
+def freeze(dict_iter):
+    return {frozendict(dict_item) for dict_item in dict_iter}

@@ -6,7 +6,7 @@ from copy import copy
 from networkx import DiGraph, topological_sort
 from networkx.drawing.nx_agraph import to_agraph
 
-from lib.utils import powerset, format_dict, powerdict
+from causal_explainer.utils import powerset, format_dict, powerdict
 
 
 logger = logging.getLogger("halpern_pearl")
@@ -214,25 +214,31 @@ def satisfies_ac2(candidate, event, causal_setting):
     return False
 
 
-def satisfies_ac3(candidate, event, causal_setting):
-    for subset_candidate in powerdict(candidate):
-        if subset_candidate != candidate:
-            if satisfies_ac1(subset_candidate, event, causal_setting) and satisfies_ac2(subset_candidate, event, causal_setting):
-                return False
-    return True
-
-
-def is_actual_cause(candidate, event, causal_setting):
+def is_weak_actual_cause(candidate, event, causal_setting):  # non-minimal actual cause
     if not satisfies_ac1(candidate, event, causal_setting):
         logger.debug("AC1 failed")
         return False
     logger.debug("AC1 passed")
     if not satisfies_ac2(candidate, event, causal_setting):
-        logger.debug("AC2 passed")
+        logger.debug("AC2 failed")
         return False
     logger.debug("AC2 passed")
+    return True
+
+
+def satisfies_ac3(candidate, event, causal_setting):
+    for subset_candidate in powerdict(candidate):
+        if subset_candidate != candidate:
+            if is_weak_actual_cause(subset_candidate, event, causal_setting):
+                return False
+    return True
+
+
+def is_actual_cause(candidate, event, causal_setting):  # as in Halpern (2015) rather than Halpern & Pearl (2005)
+    if not is_weak_actual_cause(candidate, event, causal_setting):
+        return False
     if not satisfies_ac3(candidate, event, causal_setting):
-        logger.debug("AC2 passed")
+        logger.debug("AC3 failed")
         return False
     logger.debug("AC3 passed")
     return True
@@ -247,9 +253,9 @@ def satisfies_sc1(candidate, event, causal_setting):
 
 
 def satisfies_sc2(candidate, event, causal_setting):
-    for actual_cause in find_actual_causes(event, causal_setting):
+    for actual_cause in search_candidate_causes(event, causal_setting, is_actual_cause):
         for variable, value in candidate.items():
-            if variable in actual_cause and actual_cause[variable] == value:
+            if variable in actual_cause and actual_cause[variable] == value:  # conjunct variable=value of candidate is part of an actual cause
                 return True
     return False
 
@@ -261,20 +267,28 @@ def satisfies_sc3(candidate, event, causal_setting):
     return True
 
 
-def satisfies_sc4(candidate, event, causal_setting):
-    for subset_candidate in powerdict(candidate):
-        if subset_candidate and subset_candidate != candidate:
-            if satisfies_sc1(subset_candidate, event, causal_setting) and satisfies_sc2(subset_candidate, event, causal_setting) and satisfies_sc3(subset_candidate, event, causal_setting):
-                return False
-    return True
-
-
-def is_sufficient_cause(candidate, event, causal_setting):  # as in Halpern (2016) rather than Halpern & Pearl (2005)
+def is_weak_sufficient_cause(candidate, event, causal_setting):  # non-minimal sufficient cause
     if not satisfies_sc1(candidate, event, causal_setting):
         return False
     if not satisfies_sc2(candidate, event, causal_setting):
         return False
     if not satisfies_sc3(candidate, event, causal_setting):
+        return False
+    return True
+
+
+def satisfies_sc4(candidate, event, causal_setting):
+    for subset_candidate in powerdict(candidate):
+        if subset_candidate and subset_candidate != candidate:
+            if is_weak_sufficient_cause(subset_candidate, event, causal_setting):
+                return False
+    return True
+
+
+def is_sufficient_cause(candidate, event, causal_setting):  # as in Halpern (2016) rather than Halpern & Pearl (2005)
+    if not is_weak_sufficient_cause(candidate, event, causal_setting):
+        return False
+    if not satisfies_sc4(candidate, event, causal_setting):
         return False
     return True
 
@@ -293,102 +307,7 @@ def find_all_assignments(domains):
             yield from find_exact_assignments(domains, variables)
 
 
-def find_actual_causes(event, causal_setting):
+def search_candidate_causes(event, causal_setting, condition):
     for candidate in find_all_assignments(causal_setting.endogenous_domains):
-        if is_actual_cause(candidate, event, causal_setting):
-            yield candidate
-
-
-def find_sufficient_causes(event, causal_setting):
-    for candidate in find_all_assignments(causal_setting.endogenous_domains):
-        if is_sufficient_cause(candidate, event, causal_setting):
-            yield candidate
-
-
-class EpistemicState:
-    def __init__(self, causal_network, contexts, exogenous_domains, endogenous_domains):
-        self.causal_network = causal_network
-        self.contexts = contexts
-        self.exogenous_domains = exogenous_domains
-        self.endogenous_domains = endogenous_domains
-
-    def causal_settings(self):
-        for context in self.contexts:
-            yield CausalSetting(self.causal_network, context, self.exogenous_domains, self.endogenous_domains)
-
-
-def satisfies_ex1(candidate, event, epistemic_state):
-    for causal_setting in epistemic_state.causal_settings():
-        if Conjunction(assignments2conjunction(candidate), event).entailed_by(causal_setting):
-            if not satisfies_sc2(candidate, event, causal_setting):
-                return False
-        if not CausalFormula(candidate, event).entailed_by(causal_setting):
-            return False
-    return True
-
-
-def satisfies_ex2(candidate, event, epistemic_state):
-    for subset_candidate in powerdict(candidate):
-        if subset_candidate and subset_candidate != candidate:
-            if satisfies_ex1(subset_candidate, event, epistemic_state):
-                return False
-    return True
-
-
-def satisfies_ex3(candidate, event, epistemic_state):
-    for causal_setting in epistemic_state.causal_settings():
-        if Conjunction(assignments2conjunction(candidate), event).entailed_by(causal_setting):
-            return True
-    return False
-
-
-def satisfies_ex4(candidate, event, epistemic_state):
-    for causal_setting in epistemic_state.causal_settings():
-        if event.entailed_by(causal_setting):
-            if Negation(assignments2conjunction(candidate)).entailed_by(causal_setting):
-                return True
-    return False
-
-
-def is_explanation(candidate, event, epistemic_state):
-    if not satisfies_ex1(candidate, event, epistemic_state):
-        return False
-    if not satisfies_ex2(candidate, event, epistemic_state):
-        return False
-    if not satisfies_ex3(candidate, event, epistemic_state):
-        return False
-    return True
-
-
-def is_nontrivial_explanation(candidate, event, epistemic_state):
-    if not is_explanation(candidate, event, epistemic_state):
-        return False
-    if not satisfies_ex4(candidate, event, epistemic_state):
-        return False
-    return True
-
-
-def is_trivial_explanation(candidate, event, epistemic_state):
-    if not is_explanation(candidate, event, epistemic_state):
-        return False
-    if satisfies_ex4(candidate, event, epistemic_state):
-        return False
-    return True
-
-
-def find_explanations(event, epistemic_state):
-    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
-        if is_explanation(candidate, event, epistemic_state):
-            yield candidate
-
-
-def find_nontrivial_explanations(event, epistemic_state):
-    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
-        if is_nontrivial_explanation(candidate, event, epistemic_state):
-            yield candidate
-
-
-def find_trivial_explanations(event, epistemic_state):
-    for candidate in find_all_assignments(epistemic_state.endogenous_domains):
-        if is_trivial_explanation(candidate, event, epistemic_state):
+        if condition(candidate, event, causal_setting):
             yield candidate
